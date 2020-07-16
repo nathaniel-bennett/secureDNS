@@ -6,7 +6,7 @@
 #include "addrinfo.h"
 #include "../include/dns.h"
 #include "dns_context.h"
-#include "dns_cache.h"
+#include "cache.h"
 #include "dns_hashmap.h"
 #include "resource_records.h"
 
@@ -50,7 +50,7 @@ int WRAPPER_getaddrinfo(const char *node, const char *service,
         return response;
 
     /* Check to see if the cached response will work */
-    records = get_cached_dns(node);
+    records = get_cached_record(node);
     if (records != NULL)
         return convert_records(records, service, hints, res);
 
@@ -140,7 +140,7 @@ int WRAPPER_getaddrinfo(const char *node, const char *service,
         response = convert_records(records, service, hints, res);
 
         /* we want to cache the good response regardless of conversion fail */
-        ret = add_to_dns_cache(node, records);
+        ret = add_record_to_cache(node, records);
         if (ret != 0)
             dns_records_free(records);
     }

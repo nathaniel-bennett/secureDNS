@@ -3,7 +3,7 @@
 #include <string.h>
 #include <time.h>
 
-#include "dns_cache.h"
+#include "cache.h"
 
 
 #define MAX_BUCKETS 127
@@ -49,7 +49,7 @@ static int get_index(const char *hostname)
  * @return A pointer to the socket context, or NULL if no socket context was
  * found with the associated fd.
  */
-dns_rr *get_cached_dns(const char *hostname)
+dns_rr *get_cached_record(const char *hostname)
 {
     node *curr = hashmap[get_index(hostname)];
 
@@ -57,7 +57,7 @@ dns_rr *get_cached_dns(const char *hostname)
         if (strcmp(curr->hostname, hostname) == 0) {
 
             if (has_expired_records(curr->resp)) {
-                del_cached_dns(hostname);
+                del_cached_record(hostname);
                 dns_records_free(curr->resp);
                 return NULL;
 
@@ -80,7 +80,7 @@ dns_rr *get_cached_dns(const char *hostname)
  * 1 if an entry already exists for the given fd; and
  * -1 if a new entry could not be allocated.
  */
-int add_to_dns_cache(const char *hostname, dns_rr *resp)
+int add_record_to_cache(const char *hostname, dns_rr *resp)
 {
     static int cleanup_handler_installed = 0;
     node *curr;
@@ -88,7 +88,7 @@ int add_to_dns_cache(const char *hostname, dns_rr *resp)
     int index;
 
     if (!cleanup_handler_installed) {
-        atexit(clear_dns_cache);
+        atexit(clear_cache);
         cleanup_handler_installed = 1;
     }
 
@@ -137,7 +137,7 @@ int add_to_dns_cache(const char *hostname, dns_rr *resp)
  * @return 0 if the entry was successfully deleted; or -1 if no entry exists
  * for the given fd.
  */
-int del_cached_dns(const char *hostname)
+int del_cached_record(const char *hostname)
 {
     node *curr;
     node *next;
@@ -169,7 +169,7 @@ int del_cached_dns(const char *hostname)
     return -1;
 }
 
-void clear_dns_cache()
+void clear_cache()
 {
     int i;
 
