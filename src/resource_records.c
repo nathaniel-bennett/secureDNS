@@ -6,7 +6,7 @@
 
 #include "resource_records.h"
 #include "dns_context.h"
-#include "dns.h"
+#include "../include/dns.h"
 
 #define MAX_HOSTNAME 255
 

@@ -4,7 +4,7 @@
 
 #include "original_dns.h"
 #include "addrinfo.h"
-#include "dns.h"
+#include "../include/dns.h"
 #include "dns_context.h"
 #include "dns_cache.h"
 #include "dns_hashmap.h"

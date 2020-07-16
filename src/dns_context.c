@@ -8,7 +8,7 @@
 
 #include "dns_context.h"
 #include "resource_records.h"
-#include "dns.h"
+#include "../include/dns.h"
 #include "dns_hashmap.h"
 
 #define BLOCK_PADDING_LENGTH 256

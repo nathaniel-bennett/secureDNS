@@ -6,7 +6,7 @@ extern "C" {
 #include <stdio.h>
 #include <unistd.h>
 
-#include "dns.h"
+#include "../include/dns.h"
 
     void print_addrinfo(struct addrinfo *info);
 
