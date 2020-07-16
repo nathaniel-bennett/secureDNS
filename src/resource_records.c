@@ -48,7 +48,7 @@
             + get_authority_rr_cnt(wire) + get_additional_rr_cnt(wire))
 
 
-int parse_dns_response(unsigned char *wire, int wire_len,
+int parse_dns_record(unsigned char *wire, int wire_len,
             int *pos, const char *hostname, uint16_t id, dns_rr **result);
 int parse_query(unsigned char *wire, int *pos, int max_len, dns_rr **res);
 int parse_rr(unsigned char *wire, int *pos, int wire_len, dns_rr **out);
@@ -68,9 +68,9 @@ uint32_t get_rr_ttl(unsigned char *wire, int *pos);
 uint16_t get_rr_rdata_len(unsigned char *wire, int *pos);
 unsigned char *get_rr_rdata(unsigned char *wire, int *pos, uint16_t rdata_len);
 
-int get_ipv4_addr(unsigned char *wire,
+int get_ipv4_rdata(unsigned char *wire,
                   int *pos, uint16_t len, struct sockaddr **addr);
-int get_ipv6_addr(unsigned char *wire,
+int get_ipv6_rdata(unsigned char *wire,
                   int *pos, uint16_t len, struct sockaddr **addr);
 
 void name_ascii_to_wire(unsigned char *wire, int *pos, const char *name);
@@ -79,14 +79,50 @@ int name_ascii_from_wire(unsigned char *wire,
 
 
 
-int parse_dns_responses(unsigned char *wire,
+/*******************************************************************************
+ *                  FUNCTIONS FOR RESOURCE RECORD CREATION
+ ******************************************************************************/
+
+int form_question_record(unsigned char *wire,
+    ssize_t wire_size, uint16_t id, const char *hostname, int type)
+{
+    int query_len = 0;
+
+    if (strlen(hostname) + 1 > MAX_HOSTNAME)
+        return EAI_NONAME;
+
+    if (wire_size < DNS_HEADER_BYTESIZE + QUERY_BYTESIZE(hostname))
+        return EAI_NONAME;
+
+
+    /* header settings */
+    clear_header(wire);
+    set_header_id(wire, id);
+    set_header_recursion_desired(wire);
+    set_header_question_cnt(wire, 1);
+
+    query_len = DNS_HEADER_BYTESIZE;
+
+    name_ascii_to_wire(wire, &query_len, hostname);
+
+    if (type == AF_INET)
+        set_rr_type(wire, &query_len, DNS_A_TYPE);
+    else /* (type == AF_INET6) */
+        set_rr_type(wire, &query_len, DNS_AAAA_TYPE);
+
+    set_rr_class(wire, &query_len, DNS_IN_CLASS);
+
+    return query_len;
+}
+
+int parse_dns_records(unsigned char *wire,
             int wire_len, const char *hostname, uint16_t id, dns_rr **out)
 {
     dns_rr *records = NULL, *tmp = NULL, *last = NULL;
     int pos = 0, i, ret;
 
     for (i = 0; i < DNS_REQUEST_CNT; i++) {
-        ret = parse_dns_response(wire, wire_len, &pos, hostname, id, &tmp);
+        ret = parse_dns_record(wire, wire_len, &pos, hostname, id, &tmp);
         if (ret == EAI_NODATA)
             continue;
         else if (ret != 0)
@@ -118,7 +154,7 @@ err:
     return ret;
 }
 
-int parse_dns_response(unsigned char *wire, int wire_len,
+int parse_dns_record(unsigned char *wire, int wire_len,
             int *pos, const char *hostname, uint16_t id, dns_rr **result)
 {
     dns_rr *last = NULL, *tmp = NULL;
@@ -212,41 +248,24 @@ err:
     return ret;
 }
 
-
-int form_question_rr(unsigned char *wire,
-            ssize_t wire_size, uint16_t id, const char *hostname, int type)
+void dns_records_free(dns_rr *records)
 {
-    int query_len = 0;
+    if (records == NULL)
+        return;
 
-    if (strlen(hostname) + 1 > MAX_HOSTNAME)
-        return EAI_NONAME;
+    if (records->cname != NULL)
+        free(records->cname);
+    if (records->data != NULL)
+        free(records->data);
+    if (records->next != NULL)
+        dns_records_free(records->next);
 
-    if (wire_size < DNS_HEADER_BYTESIZE + QUERY_BYTESIZE(hostname))
-        return EAI_NONAME;
-
-
-    /* header settings */
-    clear_header(wire);
-    set_header_id(wire, id);
-    set_header_recursion_desired(wire);
-    set_header_question_cnt(wire, 1);
-
-    query_len = DNS_HEADER_BYTESIZE;
-
-    name_ascii_to_wire(wire, &query_len, hostname);
-
-    if (type == AF_INET)
-        set_rr_type(wire, &query_len, DNS_A_TYPE);
-    else /* (type == AF_INET6) */
-        set_rr_type(wire, &query_len, DNS_AAAA_TYPE);
-
-    set_rr_class(wire, &query_len, DNS_IN_CLASS);
-
-    return query_len;
+    free(records);
 }
 
+
 /*******************************************************************************
- *                      HELPER FUNCTIONS FOR THE QUERY
+ *                      ASCII/WIRE FORMAT CONVERSION
  ******************************************************************************/
 
 /*
@@ -290,9 +309,6 @@ void name_ascii_to_wire(unsigned char *wire, int *pos, const char *name)
     *last = digit_cnt;
     *pos += i+2;
 }
-
-
-
 
 
 /*
@@ -388,6 +404,78 @@ int name_ascii_from_wire(unsigned char *wire,
     return 0;
 }
 
+
+
+/*******************************************************************************
+ *                 HELPER FUNCTIONS FOR PARSING DNS RESPONSES
+ ******************************************************************************/
+
+
+int check_dns_resp_header(unsigned char *wire, uint16_t id)
+{
+    uint16_t resp_id = get_header_id(wire);
+    if (resp_id != id)
+        return -1;
+
+    if (!is_response_record(wire))
+        return EAI_FAIL;
+
+    if (get_header_opcode(wire) != DNS_OPCODE_QUERY)
+        return EAI_FAIL;
+
+    if (is_truncated_record(wire))
+        return EAI_FAIL;
+
+    if (!recursion_supported(wire))
+        return EAI_FAIL;
+
+    if (get_header_rcode(wire) == DNS_RCODE_BAD_HOSTNAME)
+        return EAI_NODATA;
+
+    if (get_header_rcode(wire) != DNS_RCODE_NO_ERROR)
+        return EAI_FAIL;
+
+
+    if (get_question_cnt(wire) != 1)
+        return EAI_FAIL;
+
+    return 0;
+}
+
+int parse_query(unsigned char *wire, int *pos, int max_len, dns_rr **res)
+{
+    int ret;
+
+    dns_rr *record = calloc(1, sizeof(dns_rr));
+    if (record == NULL)
+        return EAI_MEMORY;
+
+    /* extract name from wire */
+    ret = name_ascii_from_wire(wire, pos, max_len, &record->cname);
+    if (record->cname == NULL)
+        goto err;
+
+    /* extract type from wire */
+    uint16_t type = get_rr_type(wire, pos);
+    if (type != DNS_A_TYPE && type != DNS_AAAA_TYPE) {
+        ret = EAI_FAIL;
+        goto err;
+    }
+
+    uint16_t class = get_rr_class(wire, pos);
+    if (class != DNS_IN_CLASS) {
+        ret = EAI_FAIL;
+        goto err;
+    }
+
+    *res = record;
+    return 0;
+err:
+
+    dns_records_free(record);
+    return ret;
+}
+
 /*
  * Extract the wire-formatted resource record at the offset specified by
  * *pos in the array of bytes provided (wire) and return a
@@ -448,12 +536,12 @@ int parse_rr(unsigned char *wire, int *pos, int wire_len, dns_rr **out)
                     pos, wire_len, &record->aliased_host);
 
     } else if (type == DNS_A_TYPE) {
-        ret = get_ipv4_addr(wire,
-                    pos, record->resp_len, &record->addr);
+        ret = get_ipv4_rdata(wire,
+                             pos, record->resp_len, &record->addr);
 
     } else if (type == DNS_AAAA_TYPE) {
-        ret = get_ipv6_addr(wire,
-                    pos, record->resp_len, &record->addr);
+        ret = get_ipv6_rdata(wire,
+                             pos, record->resp_len, &record->addr);
 
     } else {
         record->is_other_type = 1;
@@ -474,83 +562,10 @@ err:
     return ret;
 }
 
-int get_ipv4_addr(unsigned char *wire,
-                  int *pos, uint16_t len, struct sockaddr **addr)
-{
-    struct sockaddr_in *ipv4_addr;
 
-    if (len != sizeof(in_addr_t))
-        return EAI_FAIL;
-
-    ipv4_addr = calloc(1, sizeof(struct sockaddr_in));
-    if (ipv4_addr == NULL)
-        return EAI_MEMORY;
-
-    ipv4_addr->sin_family = AF_INET;
-
-    memcpy(&ipv4_addr->sin_addr.s_addr, &wire[*pos], len);
-
-    *addr = (struct sockaddr*) ipv4_addr;
-    *pos += len;
-
-    return 0;
-}
-
-int get_ipv6_addr(unsigned char *wire,
-                  int *pos, uint16_t len, struct sockaddr **addr)
-{
-    struct sockaddr_in6 *ipv6_addr;
-
-    if (len != sizeof(struct in6_addr))
-        return EAI_FAIL;
-
-    ipv6_addr = calloc(1, sizeof(struct sockaddr_in6));
-    if (ipv6_addr == NULL)
-        return EAI_MEMORY;
-
-    ipv6_addr->sin6_family = AF_INET6;
-    memcpy(&ipv6_addr->sin6_addr, &wire[*pos], len);
-
-    *addr = (struct sockaddr*) ipv6_addr;
-    *pos += len;
-
-    return 0;
-}
-
-int parse_query(unsigned char *wire, int *pos, int max_len, dns_rr **res)
-{
-    int ret;
-
-    dns_rr *record = calloc(1, sizeof(dns_rr));
-    if (record == NULL)
-        return EAI_MEMORY;
-
-    /* extract name from wire */
-    ret = name_ascii_from_wire(wire, pos, max_len, &record->cname);
-    if (record->cname == NULL)
-        goto err;
-
-    /* extract type from wire */
-    uint16_t type = get_rr_type(wire, pos);
-    if (type != DNS_A_TYPE && type != DNS_AAAA_TYPE) {
-        ret = EAI_FAIL;
-        goto err;
-    }
-
-    uint16_t class = get_rr_class(wire, pos);
-    if (class != DNS_IN_CLASS) {
-        ret = EAI_FAIL;
-        goto err;
-    }
-
-    *res = record;
-    return 0;
-err:
-
-    dns_records_free(record);
-    return ret;
-}
-
+/*******************************************************************************
+ *             FUNCTIONS TO SET RESOURCE RECORD INFO ON THE WIRE
+ ******************************************************************************/
 
 void clear_header(unsigned char *wire)
 {
@@ -591,7 +606,7 @@ void set_rr_class(unsigned char *wire, int *pos, uint16_t class)
 }
 
 /*******************************************************************************
- *
+ *           FUNCTIONS TO RETRIEVE INFO FROM THE RESOURCE RECORD
  ******************************************************************************/
 
 uint16_t get_rr_type(unsigned char *wire, int *pos)
@@ -648,33 +663,45 @@ unsigned char *get_rr_rdata(unsigned char *wire, int *pos, uint16_t rdata_len)
     return rdata;
 }
 
-int check_dns_resp_header(unsigned char *wire, uint16_t id)
+int get_ipv4_rdata(unsigned char *wire,
+    int *pos, uint16_t len, struct sockaddr **addr)
 {
-    uint16_t resp_id = get_header_id(wire);
-    if (resp_id != id)
-        return -1;
+    struct sockaddr_in *ipv4_addr;
 
-    if (!is_response_record(wire))
+    if (len != sizeof(in_addr_t))
         return EAI_FAIL;
 
-    if (get_header_opcode(wire) != DNS_OPCODE_QUERY)
+    ipv4_addr = calloc(1, sizeof(struct sockaddr_in));
+    if (ipv4_addr == NULL)
+        return EAI_MEMORY;
+
+    ipv4_addr->sin_family = AF_INET;
+
+    memcpy(&ipv4_addr->sin_addr.s_addr, &wire[*pos], len);
+
+    *addr = (struct sockaddr*) ipv4_addr;
+    *pos += len;
+
+    return 0;
+}
+
+int get_ipv6_rdata(unsigned char *wire,
+    int *pos, uint16_t len, struct sockaddr **addr)
+{
+    struct sockaddr_in6 *ipv6_addr;
+
+    if (len != sizeof(struct in6_addr))
         return EAI_FAIL;
 
-    if (is_truncated_record(wire))
-        return EAI_FAIL;
+    ipv6_addr = calloc(1, sizeof(struct sockaddr_in6));
+    if (ipv6_addr == NULL)
+        return EAI_MEMORY;
 
-    if (!recursion_supported(wire))
-        return EAI_FAIL;
+    ipv6_addr->sin6_family = AF_INET6;
+    memcpy(&ipv6_addr->sin6_addr, &wire[*pos], len);
 
-    if (get_header_rcode(wire) == DNS_RCODE_BAD_HOSTNAME)
-        return EAI_NODATA;
-
-    if (get_header_rcode(wire) != DNS_RCODE_NO_ERROR)
-        return EAI_FAIL;
-
-
-    if (get_question_cnt(wire) != 1)
-        return EAI_FAIL;
+    *addr = (struct sockaddr*) ipv6_addr;
+    *pos += len;
 
     return 0;
 }
@@ -685,20 +712,6 @@ uint16_t get_header_id(unsigned char *wire)
     id += (uint16_t) wire[1];
 
     return id;
-}
-
-void dns_records_free(dns_rr *records)
-{
-    if (records == NULL)
-        return;
-    if (records->cname != NULL)
-        free(records->cname);
-    if (records->data != NULL)
-        free(records->data);
-    if (records->next != NULL)
-        dns_records_free(records->next);
-
-    free(records);
 }
 
 

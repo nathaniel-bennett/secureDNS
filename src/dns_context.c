@@ -170,8 +170,8 @@ int form_dns_requests(dns_context *dns_ctx, const char *hostname)
     if (ret != 0)
         goto err;
 
-    ret = form_question_rr(&dns_ctx->send_buf[2],
-                MAX_BUFFER-2, id, canon_hostname, AF_INET);
+    ret = form_question_record(&dns_ctx->send_buf[2],
+                               MAX_BUFFER - 2, id, canon_hostname, AF_INET);
     if (ret < 0)
         goto err;
 
@@ -181,8 +181,8 @@ int form_dns_requests(dns_context *dns_ctx, const char *hostname)
 
     dns_ctx->req_size = ret + 2;
 
-    ret = form_question_rr(&dns_ctx->send_buf[dns_ctx->req_size + 2],
-                MAX_BUFFER-2, id, canon_hostname, AF_INET6);
+    ret = form_question_record(&dns_ctx->send_buf[dns_ctx->req_size + 2],
+                               MAX_BUFFER - 2, id, canon_hostname, AF_INET6);
     if (ret < 0)
         goto err;
 

@@ -22,10 +22,10 @@ struct dns_rr_st {
 
 
 
-int form_question_rr(unsigned char *wire, ssize_t wire_size,
+int form_question_record(unsigned char *wire, ssize_t wire_size,
             uint16_t id, const char *hostname, int type);
 
-int parse_dns_responses(unsigned char *wire,
+int parse_dns_records(unsigned char *wire,
             int wire_len, const char *hostname, uint16_t id, dns_rr **out);
 
 int has_expired_records(dns_rr *records);

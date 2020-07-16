@@ -131,8 +131,9 @@ int WRAPPER_getaddrinfo(const char *node, const char *service,
                 goto end;
         }
 
-        response = parse_dns_responses(dns_ctx->recv_buf,
-                    dns_ctx->resp_size, node, dns_ctx->id, &records);
+        response = parse_dns_records(dns_ctx->recv_buf,
+                                     dns_ctx->resp_size, node, dns_ctx->id,
+                                     &records);
         if (response != 0)
             goto end;
 
