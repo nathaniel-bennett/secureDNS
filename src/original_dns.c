@@ -15,7 +15,6 @@
 #define NEW_EAI_ADDRFAMILY -9
 #define NEW_EAI_MEMORY     -10
 #define NEW_EAI_SYSTEM     -11
-#define NEW_EAI_UNKNOWN    -20
 
 
 int o_getaddrinfo(const char *node, const char *service,
