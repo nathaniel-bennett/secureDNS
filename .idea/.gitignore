@@ -7,5 +7,6 @@
 /dataSources/
 /dataSources.local.xml
 
-/.idea/
-/.idea/*
+# CLion-specific files
+.idea/
+cmake_build_debug
