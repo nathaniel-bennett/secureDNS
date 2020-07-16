@@ -10,15 +10,15 @@ set(CMAKE_C_FLAGS "-D_GNU_SOURCE")
 link_libraries("ssl" "crypto")
 
 add_library(securedns
-        dns.h
-        wrapper_dns.c
-        original_dns.c
-        original_dns.h
-        dns_hashmap.c
-        dns_hashmap.h dns_cache.c dns_cache.h dns_context.c dns_context.h resource_records.c resource_records.h addrinfo.c addrinfo.h)
+        include/dns.h
+        src/wrapper_dns.c
+        src/original_dns.c
+        src/original_dns.h
+        src/dns_hashmap.c
+        src/dns_hashmap.h src/dns_cache.c src/dns_cache.h src/dns_context.c src/dns_context.h src/resource_records.c src/resource_records.h src/addrinfo.c src/addrinfo.h)
 
 add_executable(simple_test
-        simple_test.cpp dns.h)
+        tests/simple_test.cpp include/dns.h)
 
 
 target_link_libraries(simple_test "securedns")
