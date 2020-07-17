@@ -19,7 +19,7 @@
 #define DNS_TTL_BYTESIZE 4
 #define DNS_RDATA_LEN_BYTESIZE 2
 
-#define QUERY_BYTESIZE(hostname) \
+#define WIRE_QUERY_BYTESIZE(hostname) \
             (HOSTNAME_WIRE_LEN(hostname) + 4)
 
 #define DNS_RECURSION_DESIRED_BIT 0x01
@@ -50,8 +50,12 @@
 
 int parse_dns_record(unsigned char *wire, int wire_len,
             int *pos, const char *hostname, uint16_t id, dns_rr **result);
+
+int check_request_info(unsigned char *wire, int *pos, int wire_len,
+            const char *hostname, uint16_t id);
 int parse_query(unsigned char *wire, int *pos, int max_len, dns_rr **res);
 int parse_rr(unsigned char *wire, int *pos, int wire_len, dns_rr **out);
+dns_rr *concat_records(dns_rr *records, dns_rr *new_records);
 
 void clear_header(unsigned char *wire);
 void set_header_id(unsigned char *wire, uint16_t id);
@@ -84,16 +88,15 @@ int name_ascii_from_wire(unsigned char *wire,
  ******************************************************************************/
 
 int form_question_record(unsigned char *wire,
-    ssize_t wire_size, uint16_t id, const char *hostname, int type)
+            ssize_t wire_size, uint16_t id, const char *hostname, int type)
 {
     int query_len = 0;
 
     if (strlen(hostname) + 1 > MAX_HOSTNAME)
         return EAI_NONAME;
 
-    if (wire_size < DNS_HEADER_BYTESIZE + QUERY_BYTESIZE(hostname))
-        return EAI_NONAME;
-
+    if (wire_size < DNS_HEADER_BYTESIZE + WIRE_QUERY_BYTESIZE(hostname))
+        return EAI_FAIL;
 
     /* header settings */
     clear_header(wire);
@@ -118,26 +121,16 @@ int form_question_record(unsigned char *wire,
 int parse_dns_records(unsigned char *wire,
             int wire_len, const char *hostname, uint16_t id, dns_rr **out)
 {
-    dns_rr *records = NULL, *tmp = NULL, *last = NULL;
+    dns_rr *records = NULL, *tmp = NULL;
     int pos = 0, i, ret;
 
+    /* we sent two queries: an A query and an AAAA query */
     for (i = 0; i < DNS_REQUEST_CNT; i++) {
         ret = parse_dns_record(wire, wire_len, &pos, hostname, id, &tmp);
-        if (ret == EAI_NODATA)
-            continue;
-        else if (ret != 0)
+        if (ret < 0)
             goto err;
 
-        if (records == NULL)
-            records = tmp; /* start the list */
-        else
-            last->next = tmp; /* append to the list */
-
-        /* get the last resource record in the list */
-        while (tmp->next != NULL)
-            tmp = tmp->next;
-
-        last = tmp;
+        records = concat_records(records, tmp);
     }
 
     if (records == NULL)
@@ -157,39 +150,18 @@ err:
 int parse_dns_record(unsigned char *wire, int wire_len,
             int *pos, const char *hostname, uint16_t id, dns_rr **result)
 {
-    dns_rr *last = NULL, *tmp = NULL;
+    dns_rr *tmp = NULL;
     int i, ret;
     int record_cnt;
-    char *cname;
-
-    *result = NULL;
-
-    if (wire_len - *pos < DNS_HEADER_BYTESIZE)
-        return EAI_FAIL;
-
-    ret = check_dns_resp_header(&wire[*pos], id);
-    if (ret != 0)
-        return ret;
-
-    cname = strdup(hostname);
+    char *cname = strdup(hostname);
     if (cname == NULL)
         return EAI_MEMORY;
 
-    record_cnt = get_rr_cnt(&wire[*pos]);
+    *result = NULL;
 
-    *pos += DNS_HEADER_BYTESIZE;
-
-    ret = parse_query(wire, pos, wire_len, &tmp);
-    if (ret != 0)
+    record_cnt = check_request_info(wire, pos, wire_len, hostname, id);
+    if (record_cnt < 0)
         goto err;
-
-    if (strcmp(tmp->cname, cname) != 0) {
-        ret = EAI_FAIL;
-        goto err;
-    }
-
-    dns_records_free(tmp);
-    tmp = NULL;
 
     for (i = 0; i < record_cnt; i++) {
         ret = parse_rr(wire, pos, wire_len, &tmp);
@@ -222,19 +194,11 @@ int parse_dns_record(unsigned char *wire, int wire_len,
                 goto err;
             }
 
-            if (*result == NULL)
-                *result = tmp;
-            else
-                last->next = tmp;
-
-            last = tmp;
+            *result = concat_records(*result, tmp);
         }
     }
 
     free(cname);
-
-    if (*result == NULL)
-        return EAI_NODATA;
 
     return 0;
 err:
@@ -332,7 +296,7 @@ int name_ascii_from_wire(unsigned char *wire,
     int i = 0, ret, buf_len;
 
     if (curr[0] == '\0') {
-        *pos += 1;
+        *pos += 1; /* BUG: wire_len never checked here... */
         *out = strdup(".");
         if (*out == NULL)
             return EAI_MEMORY;
@@ -442,7 +406,36 @@ int check_dns_resp_header(unsigned char *wire, uint16_t id)
     return 0;
 }
 
-int parse_query(unsigned char *wire, int *pos, int max_len, dns_rr **res)
+int check_request_info(unsigned char *wire, int *pos, int wire_len,
+            const char *hostname, uint16_t id)
+{
+    int record_cnt, ret;
+    dns_rr *tmp;
+
+    if (wire_len - *pos < DNS_HEADER_BYTESIZE)
+        return EAI_FAIL;
+
+    ret = check_dns_resp_header(&wire[*pos], id);
+    if (ret != 0)
+        return ret;
+
+    record_cnt = get_rr_cnt(&wire[*pos]);
+    *pos += DNS_HEADER_BYTESIZE;
+
+    ret = parse_query(wire, pos, wire_len, &tmp);
+    if (ret != 0)
+        return ret;
+
+    if (strcmp(tmp->cname, hostname) != 0) {
+        dns_records_free(tmp);
+        return EAI_FAIL;
+    }
+
+    dns_records_free(tmp);
+    return record_cnt;
+}
+
+int parse_query(unsigned char *wire, int *pos, int wire_len, dns_rr **res)
 {
     int ret;
 
@@ -451,7 +444,7 @@ int parse_query(unsigned char *wire, int *pos, int max_len, dns_rr **res)
         return EAI_MEMORY;
 
     /* extract name from wire */
-    ret = name_ascii_from_wire(wire, pos, max_len, &record->cname);
+    ret = name_ascii_from_wire(wire, pos, wire_len, &record->cname);
     if (record->cname == NULL)
         goto err;
 
@@ -560,6 +553,22 @@ err:
         dns_records_free(record);
     *out = NULL;
     return ret;
+}
+
+
+dns_rr *concat_records(dns_rr *records, dns_rr *new_records)
+{
+    dns_rr *last = records;
+
+    if (records == NULL)
+        return new_records;
+
+    while (last->next != NULL)
+        last = last->next;
+
+    last->next = new_records;
+
+    return records;
 }
 
 
