@@ -6,6 +6,9 @@
 #define MAX_BUFFER 8192
 #define DNS_REQUEST_CNT 2
 
+#define BLOCKING_NEED_READ  0x02
+#define BLOCKING_NEED_WRITE 0x04
+
 typedef struct dns_context_st dns_context;
 
 
@@ -30,8 +33,6 @@ struct dns_context_st {
 
     uint16_t id;
     enum dns_state state;
-
-    uint8_t is_nonblocking;
 
     unsigned char send_buf[MAX_BUFFER];
     size_t num_sent;

@@ -75,7 +75,6 @@ dns_context *dns_context_new(const char *hostname, int is_nonblocking)
         goto err;
 
     dns_ctx->state = DNS_CONNECTING_TCP;
-    dns_ctx->is_nonblocking = is_nonblocking;
 
     dns_ctx->resp_size = RESP_LEN_BYTESIZE;
     dns_ctx->responses_left = DNS_REQUEST_CNT;
@@ -206,21 +205,19 @@ int get_ssl_error(dns_context *dns_ctx, int ssl_ret)
 {
     switch (SSL_get_error(dns_ctx->ssl, ssl_ret)) {
     case SSL_ERROR_WANT_READ:
+        return EAI_WANT_READ;
+
     case SSL_ERROR_WANT_WRITE:
-    case SSL_ERROR_WANT_ASYNC:
-        errno = EALREADY;
-        return dns_ctx->fd;
+        return EAI_WANT_WRITE;
 
     case SSL_ERROR_SSL:
         return EAI_TLS;
 
     case SSL_ERROR_ZERO_RETURN:
-    case SSL_ERROR_SYSCALL:
         return EAI_AGAIN;
 
     default:
         return EAI_TLS;
-
     }
 }
 

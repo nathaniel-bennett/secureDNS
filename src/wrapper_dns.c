@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <openssl/err.h>
+
 #include "original_dns.h"
 #include "addrinfo.h"
 #include "../include/dns.h"
@@ -20,6 +22,7 @@ static in_addr_t dns_addr = 0x00000000;
 int check_bad_input(const char *node,
             const char *service, const struct addrinfo *hints);
 
+void clear_global_errors();
 
 /**
  * Adds additional functionality to the usual getaddrinfo function, and
@@ -67,7 +70,8 @@ int WRAPPER_getaddrinfo(const char *node, const char *service,
         ret = connect(dns_ctx->fd, (struct sockaddr*) &addr, sizeof(addr));
         if (ret != 0) {
             if (errno == EAGAIN || errno == EALREADY || errno == EINPROGRESS) {
-                return dns_ctx->fd;
+                clear_global_errors();
+                return EAI_WANT_WRITE;
             } else {
                 response = EAI_AGAIN; /* TODO: change to specific error */
                 goto end;
@@ -81,10 +85,7 @@ int WRAPPER_getaddrinfo(const char *node, const char *service,
         ret = SSL_connect(dns_ctx->ssl);
         if (ret != 1) {
             response = get_ssl_error(dns_ctx, ret);
-            if (response < 0)
-                goto end;
-            else
-                return response;
+            goto end;
         }
 
         response = form_dns_requests(dns_ctx, node);
@@ -107,10 +108,7 @@ int WRAPPER_getaddrinfo(const char *node, const char *service,
 
         if (ret != 1) {
             response = get_ssl_error(dns_ctx, ret);
-            if (response < 0)
-                goto end;
-            else
-                return response;
+            goto end;
         }
 
         dns_ctx->state = DNS_RECEIVING_RESPONSES;
@@ -132,10 +130,7 @@ int WRAPPER_getaddrinfo(const char *node, const char *service,
 
         if (ret != 1) {
             response = get_ssl_error(dns_ctx, ret);
-            if (response < 0)
-                goto end;
-            else
-                return response;
+            goto end;
         }
 
         response = parse_dns_records(dns_ctx->recv_buf,
@@ -153,6 +148,11 @@ int WRAPPER_getaddrinfo(const char *node, const char *service,
     }
 
 end:
+    if (response == EAI_WANT_READ || response == EAI_WANT_WRITE) {
+        clear_global_errors();
+        return response;
+    }
+
 
     del_dns_context(node);
 
@@ -161,6 +161,16 @@ end:
 
     return response;
 }
+
+int getaddrinfo_fd(const char *node)
+{
+    dns_context *dns_ctx = get_dns_context(node);
+    if (dns_ctx == NULL)
+        return -1;
+    else
+        return dns_ctx->fd;
+}
+
 
 void WRAPPER_freeaddrinfo(struct addrinfo *res)
 {
@@ -229,5 +239,12 @@ int check_bad_input(const char *node,
         return EAI_SOCKTYPE;
 
     return 0;
+}
+
+
+void clear_global_errors()
+{
+    errno = 0;
+    ERR_clear_error();
 }
 

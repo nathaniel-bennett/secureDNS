@@ -48,10 +48,15 @@
 
 #define EAI_TLS        -13
 
+#define EAI_WANT_READ  -14
+
+#define EAI_WANT_WRITE -15
 
 
 #define AI_TLS 0x2000
 #define AI_NONBLOCKING 0x4000
+
+int getaddrinfo_fd(const char *node);
 
 int WRAPPER_getaddrinfo(const char *node, const char *service,
             const struct addrinfo *hints, struct addrinfo **res);
