@@ -33,6 +33,9 @@
 #define DNS_RCODE_NO_ERROR 0
 #define DNS_RCODE_BAD_HOSTNAME 3
 
+#define OTHER_RECORD_FLAG 0x01
+#define CNAME_RECORD_FLAG 0x02
+
 #define recursion_supported(header) ((header)[3] & 0x80)
 #define is_response_record(header) ((header)[2] & 0x80)
 #define is_truncated_record(header) ((header)[2] & 0x02)
@@ -175,8 +178,7 @@ int parse_dns_record(dns_wire *wire,
             const char *hostname, uint16_t id, dns_rr **out)
 {
     dns_rr *tmp = NULL, *records = NULL;
-    int i, ret;
-    int record_cnt;
+    int i, ret, record_cnt;
     char *cname = strdup(hostname);
     if (cname == NULL)
         return EAI_MEMORY;
@@ -185,14 +187,21 @@ int parse_dns_record(dns_wire *wire,
     if (ret < 0)
         goto err;
 
-    record_cnt  = ret;
+    record_cnt = ret;
 
     for (i = 0; i < record_cnt; i++) {
         ret = parse_rr(wire, &tmp);
         if (ret != 0)
             goto err;
 
-        if (tmp->is_other_type) {
+        if (tmp->flags & OTHER_RECORD_FLAG) {
+            if (tmp->flags & CNAME_RECORD_FLAG) {
+                /* replace current cname with the new cname found in the record */
+                free(cname);
+                cname = tmp->aliased_host; /* we already converted from wire */
+                tmp->aliased_host = NULL;
+            }
+
             dns_records_free(tmp);
             continue;
         }
@@ -202,24 +211,7 @@ int parse_dns_record(dns_wire *wire,
             goto err;
         }
 
-        if (tmp->is_cname) {
-            /* replace current cname with the new cname found in the record */
-            free(cname);
-            cname = tmp->aliased_host; /* we already converted from wire */
-            tmp->aliased_host = NULL;
-
-            dns_records_free(tmp);
-
-        } else {
-            free(tmp->cname);
-            tmp->cname = strdup(cname);
-            if (tmp->cname == NULL) {
-                ret = EAI_MEMORY;
-                goto err;
-            }
-
-            records = concat_records(records, tmp);
-        }
+        records = concat_records(records, tmp);
     }
 
     free(cname);
@@ -227,10 +219,9 @@ int parse_dns_record(dns_wire *wire,
 
     return 0;
 err:
-    if (*out != NULL)
-        dns_records_free(*out);
-
-    if (tmp != NULL && tmp != *out)
+    if (records != NULL)
+        dns_records_free(records);
+    if (tmp != NULL && tmp != records)
         dns_records_free(tmp);
 
     free(cname);
@@ -537,7 +528,7 @@ int parse_rr(dns_wire *wire, dns_rr **out)
 
 
     if (type == DNS_CNAME_TYPE) {
-        record->is_cname = 1;
+        record->flags |= OTHER_RECORD_FLAG | CNAME_RECORD_FLAG;
         ret = name_ascii_from_wire(wire, &record->aliased_host);
 
     } else if (type == DNS_A_TYPE) {
@@ -547,7 +538,7 @@ int parse_rr(dns_wire *wire, dns_rr **out)
         ret = get_ipv6_rdata(wire, record->resp_len, &record->addr);
 
     } else {
-        record->is_other_type = 1;
+        record->flags |= OTHER_RECORD_FLAG;
         ret = get_rr_rdata(wire, record->resp_len, &record->data);
     }
 

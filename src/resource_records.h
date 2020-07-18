@@ -8,8 +8,7 @@ typedef struct dns_rr_st dns_rr;
 struct dns_rr_st {
     char *cname;
     time_t ttl;
-    uint8_t is_other_type;
-    uint8_t is_cname;
+    uint8_t flags;
     union {
         char *aliased_host;
         struct sockaddr *addr;
