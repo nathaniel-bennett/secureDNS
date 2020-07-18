@@ -27,3 +27,7 @@ add_executable(async_test
         include/dns.h)
 target_link_libraries(async_test "securedns")
 
+add_executable(poll_test
+        tests/poll_test.cpp
+        include/dns.h)
+target_link_libraries(poll_test "securedns")

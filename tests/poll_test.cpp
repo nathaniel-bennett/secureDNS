@@ -5,8 +5,12 @@ extern "C" {
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/poll.h>
 
 #include "../include/dns.h"
+
+
+#define HOST "yahoo.com"
 
 void print_addrinfo(struct addrinfo *info);
 
@@ -16,21 +20,39 @@ int main(int argc, char **argv) {
     struct addrinfo *res;
     int ret;
 
-    hints.ai_family = AF_INET6;
+    hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = 0;
     hints.ai_flags = AI_TLS | AI_NONBLOCKING;
 
+    pollfd pfd;
+
     do {
-        ret = getaddrinfo("google.com", "80", &hints, &res);
+        printf("still going...\n");
+
+        ret = getaddrinfo(HOST, "80", &hints, &res);
         if (ret != EAI_WANT_WRITE && ret != EAI_WANT_READ)
             break;
 
-        printf("still going...\n");
-        sleep(1);
-    } while (1);
+        if (ret == EAI_WANT_READ)
+            pfd.events = POLLIN;
+        else
+            pfd.events = POLLOUT;
 
-    if (ret != 0) {
+        pfd.fd = getaddrinfo_fd(HOST);
+        if (pfd.fd == -1) {
+            printf("getaddrinfo_fd failed\n");
+            exit(1);
+        }
+
+        int poll_ret = poll(&pfd, 1, 5000);
+        if (poll_ret <= 0) {
+            printf("poll_ret returned <= 0\n");
+            exit(1);
+        }
+    } while (ret < 0);
+
+    if (ret < 0) {
         printf("getaddrinfo failed with code %i: %s\n",
                ret, gai_strerror(ret));
         if (ret == EAI_SYSTEM)
