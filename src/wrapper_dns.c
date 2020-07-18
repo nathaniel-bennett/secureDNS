@@ -41,6 +41,7 @@ int WRAPPER_getaddrinfo(const char *node, const char *service,
     dns_context *dns_ctx = NULL;
     dns_rr *records = NULL;
     int ret, response;
+    errno = 0;
 
     if (hints == NULL || !(hints->ai_flags & AI_TLS))
         return o_getaddrinfo(node, service, hints, res);
@@ -82,6 +83,8 @@ int WRAPPER_getaddrinfo(const char *node, const char *service,
             response = get_ssl_error(dns_ctx, ret);
             if (response < 0)
                 goto end;
+            else
+                return response;
         }
 
         response = form_dns_requests(dns_ctx, node);
@@ -93,7 +96,7 @@ int WRAPPER_getaddrinfo(const char *node, const char *service,
         /* FALL THROUGH */
     case DNS_SENDING_REQUESTS:
         do {
-            size_t cur_sent;
+            size_t cur_sent = 0;
             ret = SSL_write_ex(dns_ctx->ssl,
                                &dns_ctx->send_buf[dns_ctx->num_sent],
                                dns_ctx->req_size - dns_ctx->num_sent,
@@ -106,6 +109,8 @@ int WRAPPER_getaddrinfo(const char *node, const char *service,
             response = get_ssl_error(dns_ctx, ret);
             if (response < 0)
                 goto end;
+            else
+                return response;
         }
 
         dns_ctx->state = DNS_RECEIVING_RESPONSES;
@@ -113,7 +118,7 @@ int WRAPPER_getaddrinfo(const char *node, const char *service,
         /* FALL THROUGH */
     case DNS_RECEIVING_RESPONSES:
         do {
-            size_t curr_read;
+            size_t curr_read = 0;
             ret = SSL_read_ex(dns_ctx->ssl,
                               &dns_ctx->recv_buf[dns_ctx->num_read],
                               dns_ctx->resp_size - dns_ctx->num_read,
@@ -129,6 +134,8 @@ int WRAPPER_getaddrinfo(const char *node, const char *service,
             response = get_ssl_error(dns_ctx, ret);
             if (response < 0)
                 goto end;
+            else
+                return response;
         }
 
         response = parse_dns_records(dns_ctx->recv_buf,
@@ -136,7 +143,6 @@ int WRAPPER_getaddrinfo(const char *node, const char *service,
                                      &records);
         if (response != 0)
             goto end;
-
 
         response = convert_records(records, service, hints, res);
 
@@ -191,6 +197,7 @@ int check_bad_input(const char *node,
         return EAI_NONAME;
 
     /* test service */
+    errno = 0;
     long port = strtol(service, NULL, 10);
     if (port < 0 || port >= USHRT_MAX || errno != 0)
         return EAI_SERVICE;
