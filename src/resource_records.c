@@ -361,7 +361,11 @@ int buf_name_from_wire(dns_wire *wire, char *buf, int buf_len)
     }
 
     wire->pos++;
-    buf[i-1] = '\0';
+
+    if (i > 0)
+        i-= 1;
+    buf[i] = '\0';
+
 
     return i;
 }
