@@ -18,7 +18,12 @@ add_library(securedns
         src/dns_hashmap.h src/cache.c src/cache.h src/dns_context.c src/dns_context.h src/resource_records.c src/resource_records.h src/addrinfo.c src/addrinfo.h)
 
 add_executable(simple_test
-        tests/simple_test.cpp include/dns.h)
-
-
+        tests/simple_test.cpp
+        include/dns.h)
 target_link_libraries(simple_test "securedns")
+
+add_executable(async_test
+        tests/async_test.cpp
+        include/dns.h)
+target_link_libraries(async_test "securedns")
+
