@@ -1,10 +1,10 @@
-#include <cstring>
 extern "C" {
 
 #include <netdb.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <string.h>
 
 #include "../include/dns.h"
 
