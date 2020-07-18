@@ -102,6 +102,7 @@ int name_ptr_from_wire(dns_wire *wire);
  *                  FUNCTIONS FOR RESOURCE RECORD CREATION
  ******************************************************************************/
 
+
 int form_question_record(unsigned char *buf,
             ssize_t buf_size, uint16_t id, const char *hostname, int type)
 {
@@ -111,13 +112,12 @@ int form_question_record(unsigned char *buf,
         .pos = 0
     };
 
+    if (strlen(hostname) + 1 > MAX_HOSTNAME)
+        return EAI_NONAME;
+
     unsigned char *header = get_header(&wire);
     if (header == NULL)
         return EAI_FAIL;
-
-    /* TODO: do this earlier? */
-    if (strlen(hostname) + 1 > MAX_HOSTNAME)
-        return EAI_NONAME;
 
     /* header settings */
     clear_header(header);
@@ -137,6 +137,7 @@ int form_question_record(unsigned char *buf,
 
     return wire.pos;
 }
+
 
 int parse_dns_records(unsigned char *buf,
             int buf_len, const char *hostname, uint16_t id, dns_rr **out)
@@ -173,6 +174,7 @@ err:
 
     return ret;
 }
+
 
 int parse_dns_record(dns_wire *wire,
             const char *hostname, uint16_t id, dns_rr **out)
@@ -227,6 +229,7 @@ err:
     free(cname);
     return ret;
 }
+
 
 void dns_records_free(dns_rr *records)
 {
@@ -304,6 +307,7 @@ int name_ascii_from_wire(dns_wire *wire, char **out)
     return buf_name_from_wire(wire, *out, MAX_HOSTNAME);
 }
 
+
 /*
  * Extract the wire-formatted DNS name at the offset specified by
  * *pos in the array of bytes provided (wire) and return its string
@@ -362,6 +366,7 @@ int buf_name_from_wire(dns_wire *wire, char *buf, int buf_len)
     return i;
 }
 
+
 int name_ptr_from_wire(dns_wire *wire)
 {
     int ptr;
@@ -413,6 +418,7 @@ int check_dns_resp_header(unsigned char *header, uint16_t id)
     return 0;
 }
 
+
 int verify_record_info(dns_wire *wire, const char *hostname, uint16_t id)
 {
 
@@ -441,6 +447,7 @@ int verify_record_info(dns_wire *wire, const char *hostname, uint16_t id)
     return record_cnt;
 }
 
+
 int parse_query(dns_wire *wire, dns_rr **out)
 {
     int ret;
@@ -456,13 +463,11 @@ int parse_query(dns_wire *wire, dns_rr **out)
 
     /* extract type from wire */
     uint16_t type = get_rr_type(wire);
-    if (type != DNS_A_TYPE && type != DNS_AAAA_TYPE) {
-        ret = EAI_FAIL;
-        goto err;
-    }
-
     uint16_t class = get_rr_class(wire);
-    if (class != DNS_IN_CLASS) {
+
+
+    if ((type != DNS_A_TYPE && type != DNS_AAAA_TYPE)
+                || (class != DNS_IN_CLASS)) {
         ret = EAI_FAIL;
         goto err;
     }
@@ -474,6 +479,7 @@ err:
     dns_records_free(record);
     return ret;
 }
+
 
 /*
  * Extract the wire-formatted resource record at the offset specified by
@@ -512,20 +518,14 @@ int parse_rr(dns_wire *wire, dns_rr **out)
 
     uint16_t type = get_rr_type(wire);
     uint16_t class = get_rr_class(wire);
-    if (class != DNS_IN_CLASS) {
-        ret = EAI_FAIL;
-        goto err;
-    }
-
-    /* if time(NULL) returns -1 then it will just expire sooner */
     record->ttl = time(NULL) + (time_t) get_rr_ttl(wire);
-
     record->resp_len = get_rr_rdata_len(wire);
-    if (wire->pos + record->resp_len > wire->length) {
+
+    if ((class != DNS_IN_CLASS)
+                || (wire->pos + record->resp_len > wire->length)) {
         ret = EAI_FAIL;
         goto err;
     }
-
 
     if (type == DNS_CNAME_TYPE) {
         record->flags |= OTHER_RECORD_FLAG | CNAME_RECORD_FLAG;
@@ -575,6 +575,7 @@ dns_rr *concat_records(dns_rr *records, dns_rr *new_records)
  *             FUNCTIONS TO SET RESOURCE RECORD INFO ON THE WIRE
  ******************************************************************************/
 
+
 unsigned char *get_header(dns_wire *wire)
 {
     if (wire->pos + DNS_HEADER_SIZE > wire->length) {
@@ -587,10 +588,12 @@ unsigned char *get_header(dns_wire *wire)
     }
 }
 
+
 void clear_header(unsigned char *header)
 {
     memset(header, 0, DNS_HEADER_SIZE);
 }
+
 
 void set_header_id(unsigned char *header, uint16_t id)
 {
@@ -598,16 +601,19 @@ void set_header_id(unsigned char *header, uint16_t id)
     header[1] = id & 0xff;
 }
 
+
 void set_header_recursion_desired(unsigned char *header)
 {
     header[2] |= DNS_RECURSION_DESIRED_BIT;
 }
+
 
 void set_header_question_cnt(unsigned char *header, uint16_t cnt)
 {
     header[4] = cnt >> 8;
     header[5] = cnt & 0xff;
 }
+
 
 void set_rr_type(dns_wire *wire, uint16_t type)
 {
@@ -616,6 +622,7 @@ void set_rr_type(dns_wire *wire, uint16_t type)
 
     wire->pos += DNS_TYPE_SIZE;
 }
+
 
 void set_rr_class(dns_wire *wire, uint16_t class)
 {
@@ -629,6 +636,7 @@ void set_rr_class(dns_wire *wire, uint16_t class)
  *           FUNCTIONS TO RETRIEVE INFO FROM THE RESOURCE RECORD
  ******************************************************************************/
 
+
 uint16_t get_rr_type(dns_wire *wire)
 {
     uint16_t type = ((uint16_t) wire->data[wire->pos]) << 8;
@@ -639,6 +647,7 @@ uint16_t get_rr_type(dns_wire *wire)
     return type;
 }
 
+
 uint16_t get_rr_class(dns_wire *wire)
 {
     uint16_t class = ((uint16_t) wire->data[wire->pos]) << 8;
@@ -648,6 +657,7 @@ uint16_t get_rr_class(dns_wire *wire)
 
     return class;
 }
+
 
 uint32_t get_rr_ttl(dns_wire *wire)
 {
@@ -661,6 +671,7 @@ uint32_t get_rr_ttl(dns_wire *wire)
     return ttl;
 }
 
+
 uint16_t get_rr_rdata_len(dns_wire *wire)
 {
     uint16_t rdata_len = ((uint16_t) wire->data[wire->pos]) << 8;
@@ -670,6 +681,7 @@ uint16_t get_rr_rdata_len(dns_wire *wire)
 
     return rdata_len;
 }
+
 
 int get_rr_rdata(dns_wire *wire, uint16_t rdata_len, unsigned char **out)
 {
@@ -683,6 +695,7 @@ int get_rr_rdata(dns_wire *wire, uint16_t rdata_len, unsigned char **out)
     *out = rdata;
     return 0;
 }
+
 
 int get_ipv4_rdata(dns_wire *wire, uint16_t rdata_len, struct sockaddr **addr)
 {
@@ -704,6 +717,7 @@ int get_ipv4_rdata(dns_wire *wire, uint16_t rdata_len, struct sockaddr **addr)
     return 0;
 }
 
+
 int get_ipv6_rdata(dns_wire *wire, uint16_t rdata_len, struct sockaddr **addr)
 {
     struct sockaddr_in6 *ipv6_addr;
@@ -724,6 +738,7 @@ int get_ipv6_rdata(dns_wire *wire, uint16_t rdata_len, struct sockaddr **addr)
     return 0;
 }
 
+
 uint16_t get_header_id(unsigned char *header)
 {
     uint16_t id = ((uint16_t) header[0]) << 8;
@@ -731,51 +746,3 @@ uint16_t get_header_id(unsigned char *header)
 
     return id;
 }
-
-
-
-/*
-dns_rr *clear_expired_records(dns_rr *root)
-{
-    dns_rr *curr, *prev;
-    time_t curr_time = time(NULL);
-
-    if (root == NULL)
-        return NULL;
-
-    if (curr_time == -1) {
-        dns_records_free(root);
-        return NULL;
-    }
-
-    while (root != NULL && curr_time > root->ttl) {
-        curr = root->next;
-        root->next = NULL;
-
-        dns_records_free(root);
-        root = curr;
-    }
-
-    if (root == NULL)
-        return NULL;
-
-    prev = root;
-    curr = root->next;
-
-    while (curr != NULL) {
-        if (curr_time > curr->ttl) {
-            prev->next = curr->next;
-            curr->next = NULL;
-
-            dns_records_free(curr);
-            curr = prev->next;
-        } else {
-            prev = curr;
-            curr = curr->next;
-        }
-    }
-
-    return root;
-}
- */
-
