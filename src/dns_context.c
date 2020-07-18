@@ -1,6 +1,5 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
-#include <errno.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -23,9 +22,6 @@
 
 
 static SSL_CTX *ssl_ctx = NULL; /* to allow for session resumption/caching */
-
-/* TODO: add static SSL object to keep connection open? */
-/* could check if still open in dns_context_new() using SSL_get_shutdown() */
 
 void setup_ssl_ctx();
 void cleanup_ssl_ctx();
@@ -92,6 +88,7 @@ err:
     return NULL;
 }
 
+
 void dns_context_free(dns_context *dns_ctx)
 {
     if (dns_ctx->fd != -1)
@@ -151,7 +148,6 @@ void cleanup_ssl_ctx()
 }
 
 
-/* TODO: report proper errno */
 int form_dns_requests(dns_context *dns_ctx, const char *hostname)
 {
     int ret;

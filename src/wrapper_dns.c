@@ -22,6 +22,7 @@ static in_addr_t dns_addr = 0x00000000;
 int check_bad_input(const char *node,
             const char *service, const struct addrinfo *hints);
 
+int get_errno_error();
 void clear_global_errors();
 
 /**
@@ -69,13 +70,8 @@ int WRAPPER_getaddrinfo(const char *node, const char *service,
     case DNS_CONNECTING_TCP:
         ret = connect(dns_ctx->fd, (struct sockaddr*) &addr, sizeof(addr));
         if (ret != 0) {
-            if (errno == EAGAIN || errno == EALREADY || errno == EINPROGRESS) {
-                clear_global_errors();
-                return EAI_WANT_WRITE;
-            } else {
-                response = EAI_AGAIN; /* TODO: change to specific error */
-                goto end;
-            }
+            response = get_errno_error();
+            goto end;
         }
 
         dns_ctx->state = DNS_CONNECTING_TLS;
@@ -187,12 +183,38 @@ void WRAPPER_freeaddrinfo(struct addrinfo *res)
 
 const char *WRAPPER_gai_strerror(int errcode)
 {
-    /* TODO: account for non-defined GNU error codes */
-
-    if (errcode != EAI_TLS)
-        return o_gai_strerror(errcode);
-
-    return NULL; /* TODO: stub */
+    switch (errcode) {
+    case EAI_BADFLAGS:
+        return "Bad value for ai_flags";
+    case EAI_NONAME:
+        return "Name or service not known";
+    case EAI_AGAIN:
+        return "Temporary failure in name resolution";
+    case EAI_FAIL:
+        return "Non-recoverable failure in name resolution";
+    case EAI_NODATA:
+        return "No address associated with hostname";
+    case EAI_FAMILY:
+        return "ai_family not supported";
+    case EAI_SOCKTYPE:
+        return "ai_socktype not supported";
+    case EAI_SERVICE:
+        return "Servname not supported for ai_socktype";
+    case EAI_ADDRFAMILY:
+        return "Address family for hostname not supported";
+    case EAI_MEMORY:
+        return "Could not allocate memory sufficient to complete request";
+    case EAI_SYSTEM:
+        return "System error";
+    case EAI_WANT_READ:
+        return "Reading data from dns server would block";
+    case EAI_WANT_WRITE:
+        return "Sending data to dns server would block";
+    case EAI_TLS:
+        return "Authentication error with dns server";
+    default:
+        return "Unknown error";
+    }
 }
 
 
@@ -241,6 +263,28 @@ int check_bad_input(const char *node,
     return 0;
 }
 
+
+int get_errno_error()
+{
+    switch (errno) {
+    case EAGAIN:
+    case EALREADY:
+    case EINPROGRESS:
+        return EAI_WANT_WRITE;
+    case ENETUNREACH:
+    case ENETRESET:
+    case ENETDOWN:
+    case EHOSTDOWN:
+    case EHOSTUNREACH:
+    case ECONNREFUSED:
+    case ECONNRESET:
+    case ECONNABORTED:
+    case ETIMEDOUT:
+        return EAI_AGAIN;
+    default:
+        return EAI_FAIL;
+    }
+}
 
 void clear_global_errors()
 {

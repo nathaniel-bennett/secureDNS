@@ -6,8 +6,6 @@
 #define MAX_BUFFER 8192
 #define DNS_REQUEST_CNT 2
 
-#define BLOCKING_NEED_READ  0x02
-#define BLOCKING_NEED_WRITE 0x04
 
 typedef struct dns_context_st dns_context;
 

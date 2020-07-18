@@ -46,11 +46,11 @@
 #undef EAI_SYSTEM
 #define EAI_SYSTEM     -11 /* System error returned in `errno'.  */
 
-#define EAI_TLS        -13
+#define EAI_TLS        -12
 
-#define EAI_WANT_READ  -14
+#define EAI_WANT_READ  -13
 
-#define EAI_WANT_WRITE -15
+#define EAI_WANT_WRITE -14
 
 
 #define AI_TLS 0x2000

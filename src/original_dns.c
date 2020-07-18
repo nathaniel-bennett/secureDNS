@@ -18,8 +18,7 @@
 
 
 int o_getaddrinfo(const char *node, const char *service,
-    const struct addrinfo *hints, struct addrinfo **res)
-{
+    const struct addrinfo *hints, struct addrinfo **res) {
     struct addrinfo *curr;
     struct sockaddr *tmp;
 
@@ -80,9 +79,4 @@ int o_getaddrinfo(const char *node, const char *service,
     default:
         return NEW_EAI_FAIL;
     }
-}
-
-const char *o_gai_strerror(int errcode)
-{
-    return gai_strerror(errcode);
 }
