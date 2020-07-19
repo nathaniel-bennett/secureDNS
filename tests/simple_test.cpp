@@ -21,7 +21,7 @@ extern "C" {
         hints.ai_protocol = 0;
         hints.ai_flags = AI_TLS;
 
-        ret = getaddrinfo("google.com", "80", &hints, &res);
+        ret = getaddrinfo("deccio.byu.edu", "80", &hints, &res);
         if (ret != 0) {
             printf("getaddrinfo failed with code %i: %s\n",
                         ret, gai_strerror(ret));
@@ -32,6 +32,23 @@ extern "C" {
 
         print_addrinfo(res);
         freeaddrinfo(res);
+
+        hints.ai_family = AF_INET;
+        hints.ai_socktype = SOCK_DGRAM;
+        hints.ai_protocol = 0;
+
+        ret = getaddrinfo("intel.com", "80", &hints, &res);
+        if (ret != 0) {
+            printf("getaddrinfo failed with code %i: %s\n",
+                   ret, gai_strerror(ret));
+            if (ret == EAI_SYSTEM)
+                perror("EAI_SYSTEM errno");
+            return 1;
+        }
+
+        print_addrinfo(res);
+        freeaddrinfo(res);
+
 
         hints.ai_family = AF_INET6;
         hints.ai_socktype = SOCK_DGRAM;
@@ -48,6 +65,7 @@ extern "C" {
 
         print_addrinfo(res);
         freeaddrinfo(res);
+
 
         /*
         int sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
