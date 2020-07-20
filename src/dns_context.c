@@ -14,6 +14,7 @@
 #define MAX_CERT_CHAIN_DEPTH 5
 #define MAX_HOSTNAME_LEN 253
 #define MAX_HOSTNAME_LABEL_LEN 63
+#define MAX_SESSIONS 20
 
 #define RESP_LEN_BYTESIZE 2
 
@@ -22,11 +23,15 @@
 
 
 static SSL_CTX *ssl_ctx = NULL; /* to allow for session resumption/caching */
+static SSL_SESSION *session_cache[20] = {0};
 
 void setup_ssl_ctx();
-void cleanup_ssl_ctx();
+void cleanup_ssl();
 
 int canonicalize_name(const char *name, char **canon_name);
+int new_session_cb(SSL *ssl, SSL_SESSION *new_session);
+void set_session(SSL *ssl);
+
 
 
 
@@ -58,6 +63,7 @@ dns_context *dns_context_new(const char *hostname, int is_nonblocking)
     if (dns_ctx->ssl == NULL)
         goto err;
 
+
     ret = SSL_set1_host(dns_ctx->ssl, CLOUDFARE_HOSTNAME);
     if (ret != 1)
         goto err;
@@ -69,6 +75,8 @@ dns_context *dns_context_new(const char *hostname, int is_nonblocking)
     ret = SSL_set_fd(dns_ctx->ssl, dns_ctx->fd);
     if (ret != 1)
         goto err;
+
+    set_session(dns_ctx->ssl);
 
     dns_ctx->state = DNS_CONNECTING_TCP;
 
@@ -126,14 +134,20 @@ void setup_ssl_ctx()
 
     SSL_CTX_set_block_padding(ssl_ctx, BLOCK_PADDING_LENGTH);
 
+    /* TODO: support more than Ubuntu CA locations */
     ret = SSL_CTX_load_verify_locations(ssl_ctx, NULL, UBUNTU_CA_FOLDER);
     if (ret != 1)
         goto err;
 
+
+    SSL_CTX_set_session_cache_mode(ssl_ctx,
+                SSL_SESS_CACHE_CLIENT | SSL_SESS_CACHE_NO_INTERNAL);
+    SSL_CTX_sess_set_new_cb(ssl_ctx, new_session_cb);
+
     SSL_CTX_set_verify_depth(ssl_ctx, MAX_CERT_CHAIN_DEPTH);
     SSL_CTX_set_mode(ssl_ctx, SSL_MODE_ENABLE_PARTIAL_WRITE);
 
-    atexit(cleanup_ssl_ctx);
+    atexit(cleanup_ssl);
     return;
 
 err:
@@ -142,9 +156,61 @@ err:
     ssl_ctx = NULL;
 }
 
-void cleanup_ssl_ctx()
+int new_session_cb(SSL *ssl, SSL_SESSION *new_session)
 {
+    int i;
+
+    printf("new_session_cb called\n");
+
+    for (i = 0; i < MAX_SESSIONS; i++) {
+        if (session_cache[i] == NULL) {
+            session_cache[i] = new_session;
+            return 1;
+        }
+        if (!SSL_SESSION_is_resumable(session_cache[i])) {
+            SSL_SESSION_free(session_cache[i]);
+            session_cache[i] = new_session;
+            return 1;
+        }
+    }
+    printf("Session cache full\n");
+
+    SSL_SESSION_free(session_cache[MAX_SESSIONS-1]);
+    session_cache[MAX_SESSIONS-1] = new_session;
+
+    return 1;
+}
+
+void set_session(SSL *ssl)
+{
+    int i;
+
+    for (i = 0; i < MAX_SESSIONS; i++) {
+        if (session_cache[i] != NULL) {
+            if (SSL_SESSION_is_resumable(session_cache[i])) {
+                SSL_set_session(ssl, session_cache[i]);
+                SSL_SESSION_free(session_cache[i]);
+                session_cache[i] = NULL;
+                return;
+
+            } else {
+                SSL_SESSION_free(session_cache[i]);
+                session_cache[i] = NULL;
+            }
+        }
+    }
+}
+
+void cleanup_ssl()
+{
+    int i;
+
     SSL_CTX_free(ssl_ctx);
+
+    for (i = 0; i < MAX_SESSIONS; i++) {
+        if (session_cache[i] != NULL)
+            SSL_SESSION_free(session_cache[i]);
+    }
 }
 
 
