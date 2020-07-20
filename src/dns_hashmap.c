@@ -96,6 +96,7 @@ int add_dns_context(const char *hostname, dns_context *dns_ctx)
     }
 
     if (strcmp(curr->hostname, hostname) == 0) {
+        free(new_node->hostname);
         free(new_node);
         return 1;
     }
@@ -104,6 +105,7 @@ int add_dns_context(const char *hostname, dns_context *dns_ctx)
         curr = curr->next;
 
         if (strcmp(curr->hostname, hostname) == 0) {
+            free(new_node->hostname);
             free(new_node);
             return 1;
         }

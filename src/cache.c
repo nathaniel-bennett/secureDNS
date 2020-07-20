@@ -114,6 +114,7 @@ int add_record_to_cache(const char *hostname, dns_rr *resp)
     }
 
     if (strcmp(curr->hostname, hostname) == 0) {
+        free(new_node->hostname);
         free(new_node);
         return 1;
     }
@@ -122,6 +123,7 @@ int add_record_to_cache(const char *hostname, dns_rr *resp)
         curr = curr->next;
 
         if (strcmp(curr->hostname, hostname) == 0) {
+            new_node->hostname;
             free(new_node);
             return 1;
         }
