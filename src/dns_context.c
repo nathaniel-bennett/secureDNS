@@ -99,11 +99,17 @@ err:
 
 void dns_context_free(dns_context *dns_ctx)
 {
+
+    if (dns_ctx->ssl != NULL) {
+        SSL_shutdown(dns_ctx->ssl);
+
+        SSL_free(dns_ctx->ssl);
+    }
+
     if (dns_ctx->fd != -1)
         close(dns_ctx->fd);
 
-    if (dns_ctx->ssl != NULL)
-        SSL_free(dns_ctx->ssl);
+
 
 
     free(dns_ctx);
@@ -270,7 +276,11 @@ int get_ssl_error(dns_context *dns_ctx, int ssl_ret)
     case SSL_ERROR_WANT_WRITE:
         return EAI_WANT_WRITE;
 
+    case SSL_ERROR_SYSCALL:
     case SSL_ERROR_SSL:
+        /* prevents SSL_shutdown from being called during cleanup */
+        SSL_free(dns_ctx->ssl);
+        dns_ctx->ssl = NULL;
         return EAI_TLS;
 
     case SSL_ERROR_ZERO_RETURN:
