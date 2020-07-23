@@ -14,7 +14,7 @@
 #define MAX_CERT_CHAIN_DEPTH 5
 #define MAX_HOSTNAME_LEN 253
 #define MAX_HOSTNAME_LABEL_LEN 63
-#define MAX_SESSIONS 20
+#define MAX_SESSIONS 5 /* SSL_SESSION_CACHE_MAX_SIZE_DEFAULT */
 
 #define RESP_LEN_BYTESIZE 2
 
@@ -23,7 +23,7 @@
 
 
 static SSL_CTX *ssl_ctx = NULL; /* to allow for session resumption/caching */
-static SSL_SESSION *session_cache[20] = {0};
+static SSL_SESSION *session_cache[MAX_SESSIONS] = {0};
 
 void setup_ssl_ctx();
 void cleanup_ssl();
@@ -140,8 +140,8 @@ void setup_ssl_ctx()
         goto err;
 
 
-    SSL_CTX_set_session_cache_mode(ssl_ctx,
-                SSL_SESS_CACHE_CLIENT | SSL_SESS_CACHE_NO_INTERNAL);
+    SSL_CTX_set_session_cache_mode(ssl_ctx, SSL_SESS_CACHE_CLIENT
+                | SSL_SESS_CACHE_NO_INTERNAL);
     SSL_CTX_sess_set_new_cb(ssl_ctx, new_session_cb);
 
     SSL_CTX_set_verify_depth(ssl_ctx, MAX_CERT_CHAIN_DEPTH);
@@ -160,20 +160,18 @@ int new_session_cb(SSL *ssl, SSL_SESSION *new_session)
 {
     int i;
 
-    printf("new_session_cb called\n");
-
     for (i = 0; i < MAX_SESSIONS; i++) {
+        if (session_cache[i] != NULL &&
+                    !SSL_SESSION_is_resumable(session_cache[i])) {
+            SSL_SESSION_free(session_cache[i]);
+            session_cache[i] = NULL;
+        }
+
         if (session_cache[i] == NULL) {
             session_cache[i] = new_session;
             return 1;
         }
-        if (!SSL_SESSION_is_resumable(session_cache[i])) {
-            SSL_SESSION_free(session_cache[i]);
-            session_cache[i] = new_session;
-            return 1;
-        }
     }
-    printf("Session cache full\n");
 
     SSL_SESSION_free(session_cache[MAX_SESSIONS-1]);
     session_cache[MAX_SESSIONS-1] = new_session;
