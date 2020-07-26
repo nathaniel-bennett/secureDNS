@@ -52,11 +52,36 @@
 
 #define EAI_WANT_WRITE -14
 
-
+/** Flag to have `getaddrinfo()` lookups with DNS over TLS */
 #define AI_TLS 0x2000
+
+/** Flag to have `getaddrinfo()` return prematurely rather than blocking */
 #define AI_NONBLOCKING 0x4000
 
+
+/**
+ * Returns the file descriptor being used internally to retrieve DNS records 
+ * for the hostname @p node. The file descriptor is suitable for use with
+ * `select()`, `poll()` or other system calls used to multiplex I/O. The return
+ * value of a prior `getaddrinfo()` for @p node should be used to determine
+ * whether reading or writing should be listened for on the socket (for
+ * instance, one would set polling events for the file descriptor to `POLLIN`
+ * if a call to `getaddrinfo()` returned `EAI_WANT_READ`; conversely the 
+ * polling events would be set to `POLLOUT` if `EAI_WANT_WRITE` was returned). 
+ * 
+ * It should be noted that there is an in-memory DNS cache implemented for this 
+ * stub resolver; as a result a call to `getaddrinfo()` may return a response 
+ * immediately even if the `AI_NONBLOCKING` flag is set. Any code utilizing 
+ * non-blocking DNS resolution should take this into account. 
+ * @param node A hostname that has had a call to `getaddrinfo()` performed on 
+ * it with the non-blocking flag set AND that has returned either 
+ * `EAI_WANT_READ` or `EAI_WANT_WRITE` (a file descriptor will not be retrieved 
+ * if any other value was returned by the call to `getaddrinfo()`). 
+ * @return The file descriptor in use internally for the DNS lookup of @p 
+ * node, or -1 if @p node does not have a non-blocking lookup in process. 
+ */
 int getaddrinfo_fd(const char *node);
+
 
 int WRAPPER_getaddrinfo(const char *node, const char *service,
             const struct addrinfo *hints, struct addrinfo **res);
