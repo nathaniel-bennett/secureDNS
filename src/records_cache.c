@@ -5,11 +5,10 @@
 #include "str_hashmap.h"
 
 
-#define MAX_CACHE_ENTRIES 1000;
-
+#define MAX_CACHED_RECORDS 5000
 
 /* static global hashmap for saving our cached records in */
-static hmap_str *cache_hashmap = NULL;
+static hsmap *cache_hashmap = NULL;
 
 static void clear_expired_cache_entries();
 
@@ -46,7 +45,9 @@ dns_rr *get_cached_record(const char *hostname)
  * @param sock_ctx The socket context associated with \p fd.
  * @return 0 if the fd/sock_ctx pair were successfully added;
  * 1 if an entry already exists for the given fd; and
- * -1 if a new entry could not be allocated.
+ * -1 if a new entry could not be allocated (either due to malloc() failure or
+ * the hashmap's maximum size being reached--errno will be set if the former
+ * is true).
  */
 int add_record_to_cache(const char *hostname, dns_rr *resp)
 {
@@ -58,7 +59,11 @@ int add_record_to_cache(const char *hostname, dns_rr *resp)
         atexit(free_cache_hashmap);
     }
 
-
+    if (str_hashmap_size(cache_hashmap) >= MAX_CACHED_RECORDS) {
+        clear_expired_cache_entries();
+        if (str_hashmap_size(cache_hashmap) >= MAX_CACHED_RECORDS)
+            return -1;
+    }
 
     return str_hashmap_add(cache_hashmap, hostname, (void*) resp);
 }
@@ -80,34 +85,28 @@ int del_cached_record(const char *hostname)
 
 void clear_expired_cache_entries()
 {
-    int i;
+    hsmap_iterator *iter = hsmap_iterator_start(cache_hashmap);
 
-    for (i = 0; i < cache_hashmap->num_buckets; i++) {
-        hmap_str_node *node, *prev;
+    while (iter != NULL) {
+        dns_rr *records = (dns_rr*) hsmap_iterator_value(iter);
 
-        node = cache_hashmap->buckets[i];
-        if (node == NULL)
-            continue;
+        if (has_expired_records(records)) {
+            dns_records_free(records);
 
-        prev = node;
-        while (node != NULL) {
-            if (has_expired_records((dns_rr*) node->value))
+            hsmap_iterator *tmp = hsmap_iterate(cache_hashmap, iter);
+            hsmap_iterator_del(cache_hashmap, iter);
+            iter = tmp;
 
-
-            node = node->next;
+        } else {
+            iter = hsmap_iterate(cache_hashmap, iter);
         }
-
     }
-
-
 }
 
-
-static void free_cache_hashmap()
+void free_cache_hashmap()
 {
     str_hashmap_deep_free(cache_hashmap, free_cache_hashmap_entry);
 }
-
 
 static void free_cache_hashmap_entry(void *entry)
 {

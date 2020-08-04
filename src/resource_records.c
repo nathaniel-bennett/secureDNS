@@ -1,12 +1,12 @@
+#include <netinet/in.h>
 #include <string.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <netinet/in.h>
+#include <time.h>
 
 #include "resource_records.h"
 #include "dns_context.h"
-#include "../include/dns.h"
+#include "../include/securedns.h"
 
 #define MAX_HOSTNAME 255
 
@@ -229,6 +229,28 @@ err:
     free(cname);
     return ret;
 }
+
+
+int has_expired_records(dns_rr *records)
+{
+    time_t curr_time = time(NULL);
+
+    if (records == NULL)
+        return 0;
+
+    if (curr_time < 0)
+        return 1;
+
+    while (records != NULL) {
+        if (curr_time > records->ttl)
+            return 1;
+
+        records = records->next;
+    }
+
+    return 0;
+}
+
 
 
 void dns_records_free(dns_rr *records)

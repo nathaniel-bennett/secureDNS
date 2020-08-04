@@ -7,7 +7,7 @@ extern "C" {
 #include <unistd.h>
 #include <sys/poll.h>
 
-#include "../include/dns.h"
+#include "../include/securedns.h"
 
 
 #define HOST "yahoo.com"

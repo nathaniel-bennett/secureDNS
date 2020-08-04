@@ -6,10 +6,10 @@
 
 #include "original_dns.h"
 #include "addrinfo.h"
-#include "../include/dns.h"
+#include "../include/securedns.h"
 #include "dns_context.h"
-#include "cache.h"
-#include "dns_hashmap.h"
+#include "records_cache.h"
+#include "saved_contexts.h"
 #include "resource_records.h"
 
 #define CLOUDFARE_IP ((in_addr_t) 0x01010101)
@@ -45,7 +45,8 @@ int WRAPPER_getaddrinfo(const char *node, const char *service,
     dns_context *dns_ctx = NULL;
     dns_rr *records = NULL;
     int ret, response;
-    errno = 0;
+
+    clear_global_errors();
 
     if (hints == NULL || !(hints->ai_flags & AI_TLS))
         return o_getaddrinfo(node, service, hints, res);
@@ -59,7 +60,7 @@ int WRAPPER_getaddrinfo(const char *node, const char *service,
     if (records != NULL)
         return convert_records(records, service, hints, res);
 
-    dns_ctx = get_dns_context(node);
+    dns_ctx = get_saved_dns_context(node);
     if (dns_ctx == NULL) {
         dns_ctx = dns_context_new(node, hints->ai_flags & AI_NONBLOCKING);
         if (dns_ctx == NULL)
@@ -149,8 +150,7 @@ end:
         return response;
     }
 
-
-    del_dns_context(node);
+    del_saved_dns_context(node);
 
     if (dns_ctx != NULL)
         dns_context_free(dns_ctx);
@@ -160,7 +160,7 @@ end:
 
 int getaddrinfo_fd(const char *node)
 {
-    dns_context *dns_ctx = get_dns_context(node);
+    dns_context *dns_ctx = get_saved_dns_context(node);
     if (dns_ctx == NULL)
         return -1;
     else

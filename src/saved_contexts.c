@@ -1,11 +1,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "dns_hashmap.h"
+#include "saved_contexts.h"
 #include "str_hashmap.h"
 
 
-hmap_str *dns_hashmap = NULL;
+hsmap *dns_hashmap = NULL;
 
 
 static void free_dns_hashmap();
@@ -18,7 +18,7 @@ static void free_dns_hashmap_entry(void *entry);
  * @return A pointer to the socket context, or NULL if no socket context was
  * found with the associated fd.
  */
-dns_context *get_dns_context(const char *hostname)
+dns_context *get_saved_dns_context(const char *hostname)
 {
     if (dns_hashmap == NULL)
         return NULL;
@@ -35,7 +35,7 @@ dns_context *get_dns_context(const char *hostname)
  * 1 if an entry already exists for the given fd; and
  * -1 if a memory failure occurred.
  */
-int add_dns_context(const char *hostname, dns_context *dns_ctx)
+int add_saved_dns_context(const char *hostname, dns_context *dns_ctx)
 {
     if (dns_hashmap == NULL) {
         dns_hashmap = str_hashmap_create(MAX_BUCKETS);
@@ -55,7 +55,7 @@ int add_dns_context(const char *hostname, dns_context *dns_ctx)
  * @return 0 if the entry was successfully deleted; or -1 if no entry exists
  * for the given fd.
  */
-int del_dns_context(const char *hostname)
+int del_saved_dns_context(const char *hostname)
 {
     if (dns_hashmap == NULL)
         return 1;

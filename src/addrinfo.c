@@ -18,8 +18,6 @@ in_port_t str_to_port(const char *port, in_port_t *out);
 int assign_port(const char *service, struct addrinfo *info);
 
 
-
-/* TODO: set errno correctly here */
 int convert_records(dns_rr *records, const char *service,
             const struct addrinfo *hints, struct addrinfo **res)
 {
@@ -167,7 +165,7 @@ int assign_protocol(int socktype, int protocol)
         return protocol;
 }
 
-/* TODO: add support for strings such as 'HTTP', 'DNS', etc */
+/* TODO: add support for strings such as 'HTTP', 'DNS', etc? */
 /**
  *
  * @param port

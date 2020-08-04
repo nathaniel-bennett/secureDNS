@@ -6,7 +6,7 @@ extern "C" {
 #include <unistd.h>
 #include <string.h>
 
-#include "../include/dns.h"
+#include "../include/securedns.h"
 
     void print_addrinfo(struct addrinfo *info);
 
@@ -52,6 +52,22 @@ extern "C" {
 
         hints.ai_family = AF_INET6;
         hints.ai_socktype = SOCK_DGRAM;
+        hints.ai_protocol = 0;
+
+        ret = getaddrinfo("google.com", "80", &hints, &res);
+        if (ret != 0) {
+            printf("getaddrinfo failed with code %i: %s\n",
+                   ret, gai_strerror(ret));
+            if (ret == EAI_SYSTEM)
+                perror("EAI_SYSTEM errno");
+            return 1;
+        }
+
+        print_addrinfo(res);
+        freeaddrinfo(res);
+
+        hints.ai_family = AF_INET;
+        hints.ai_socktype = SOCK_STREAM;
         hints.ai_protocol = 0;
 
         ret = getaddrinfo("google.com", "80", &hints, &res);

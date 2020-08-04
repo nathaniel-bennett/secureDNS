@@ -7,14 +7,14 @@
 
 #include "dns_context.h"
 #include "resource_records.h"
-#include "../include/dns.h"
-#include "dns_hashmap.h"
+#include "../include/securedns.h"
+#include "saved_contexts.h"
 
-#define BLOCK_PADDING_LENGTH 256
+#define BLOCK_PADDING_LENGTH 512
 #define MAX_CERT_CHAIN_DEPTH 5
 #define MAX_HOSTNAME_LEN 253
 #define MAX_HOSTNAME_LABEL_LEN 63
-#define MAX_SESSIONS 5 /* SSL_SESSION_CACHE_MAX_SIZE_DEFAULT */
+#define MAX_SESSIONS 5
 
 #define RESP_LEN_BYTESIZE 2
 
@@ -38,6 +38,7 @@ void set_session(SSL *ssl);
 dns_context *dns_context_new(const char *hostname, int is_nonblocking)
 {
     dns_context *dns_ctx = NULL;
+    int type = SOCK_STREAM | SOCK_CLOEXEC;
     int ret;
 
     if (ssl_ctx == NULL) {
@@ -52,17 +53,15 @@ dns_context *dns_context_new(const char *hostname, int is_nonblocking)
         return NULL;
 
     if (is_nonblocking)
-        dns_ctx->fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
-    else
-        dns_ctx->fd = socket(AF_INET, SOCK_STREAM, 0);
+        type |= SOCK_NONBLOCK;
 
+    dns_ctx->fd = socket(AF_INET, type, 0);
     if (dns_ctx->fd == -1)
         goto err;
 
     dns_ctx->ssl = SSL_new(ssl_ctx);
     if (dns_ctx->ssl == NULL)
         goto err;
-
 
     ret = SSL_set1_host(dns_ctx->ssl, CLOUDFARE_HOSTNAME);
     if (ret != 1)
@@ -83,7 +82,7 @@ dns_context *dns_context_new(const char *hostname, int is_nonblocking)
     dns_ctx->resp_size = RESP_LEN_BYTESIZE;
     dns_ctx->responses_left = DNS_REQUEST_CNT;
 
-    ret = add_dns_context(hostname, dns_ctx);
+    ret = add_saved_dns_context(hostname, dns_ctx);
     if (ret != 0)
         goto err;
 
@@ -99,7 +98,6 @@ err:
 
 void dns_context_free(dns_context *dns_ctx)
 {
-
     if (dns_ctx->ssl != NULL) {
         SSL_shutdown(dns_ctx->ssl);
 
@@ -108,9 +106,6 @@ void dns_context_free(dns_context *dns_ctx)
 
     if (dns_ctx->fd != -1)
         close(dns_ctx->fd);
-
-
-
 
     free(dns_ctx);
 }
@@ -130,13 +125,12 @@ void setup_ssl_ctx()
     if (ret != 1)
         goto err;
 
-    ret = SSL_CTX_set_ciphersuites(ssl_ctx, "TLS_CHACHA20_POLY1305_SHA256:"
-                                            "TLS_AES_256_GCM_SHA384");
+    ret = SSL_CTX_set_ciphersuites(ssl_ctx, "TLS_AES_256_GCM_SHA384:"
+                                            "TLS_CHACHA20_POLY1305_SHA256");
     if (ret != 1)
         goto err;
 
-    int ops = SSL_CTX_get_options(ssl_ctx);
-    SSL_CTX_set_options(ssl_ctx, ops | SSL_OP_NO_COMPRESSION);
+    SSL_CTX_set_options(ssl_ctx, SSL_OP_NO_COMPRESSION);
 
     SSL_CTX_set_block_padding(ssl_ctx, BLOCK_PADDING_LENGTH);
 
