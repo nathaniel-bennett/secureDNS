@@ -12,7 +12,5 @@ int add_record_to_cache(const char *hostname, dns_rr *resp);
 
 int del_cached_record(const char *hostname);
 
-void clear_cache();
-
 
 #endif
