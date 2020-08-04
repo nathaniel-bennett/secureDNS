@@ -42,9 +42,10 @@ be relied on for any critical systems.
  default 1.1.1.1 server
  - A slew of tests
  - Documentation
-  - Integration into the SecureSockets Library
+ - Integration into the SecureSockets Library
  
-### Distant Future
+### Features for Later
+ - MacOS, Windows & BSD support
  - Automatic switching to a backup server when connections with the main 
  server fail 
  - DNS over HTTPS
