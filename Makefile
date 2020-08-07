@@ -8,7 +8,7 @@ OBJECTS:= $(patsubst %.c,%.o,$(SOURCE))
 
 all: $(TARGET_LIB)
 
-clean: clean-objects
+clean:
 	rm -f $(TARGET_LIB)
 	rm -f $(OBJECTS)
 
