@@ -5,6 +5,7 @@
 
 
 #include "addrinfo.h"
+#include "../include/securedns.h"
 
 
 int convert_individual_record(dns_rr *record, const char *service,
