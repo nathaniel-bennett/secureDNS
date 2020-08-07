@@ -64,6 +64,14 @@ int del_saved_dns_context(const char *hostname)
 }
 
 
+void clear_saved_dns_contexts()
+{
+    if (dns_hashmap != NULL)
+        str_hashmap_clear(dns_hashmap, free_dns_hashmap_entry);
+}
+
+
+
 void free_dns_hashmap_entry(void *entry)
 {
     dns_context_free((dns_context*) entry);

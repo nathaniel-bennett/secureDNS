@@ -18,7 +18,7 @@
 
 #define RESP_LEN_BYTESIZE 2
 
-#define CLOUDFARE_HOSTNAME "cloudflare-dns.com"
+
 #define UBUNTU_CA_FOLDER "/etc/ssl/certs"
 
 
@@ -63,11 +63,12 @@ dns_context *dns_context_new(const char *hostname, int is_nonblocking)
     if (dns_ctx->ssl == NULL)
         goto err;
 
-    ret = SSL_set1_host(dns_ctx->ssl, CLOUDFARE_HOSTNAME);
+    ret = SSL_set1_host(dns_ctx->ssl, getaddrinfo_resolver_hostname());
     if (ret != 1)
         goto err;
 
-    ret = SSL_set_tlsext_host_name(dns_ctx->ssl, CLOUDFARE_HOSTNAME);
+    ret = SSL_set_tlsext_host_name(dns_ctx->ssl,
+                                   getaddrinfo_resolver_hostname());
     if (ret != 1)
         goto err;
 
@@ -201,15 +202,24 @@ void set_session(SSL *ssl)
 
 void cleanup_ssl()
 {
+    SSL_CTX_free(ssl_ctx);
+    clear_session_cache();
+}
+
+
+
+void clear_session_cache()
+{
     int i;
 
-    SSL_CTX_free(ssl_ctx);
-
     for (i = 0; i < MAX_SESSIONS; i++) {
-        if (session_cache[i] != NULL)
+        if (session_cache[i] != NULL) {
             SSL_SESSION_free(session_cache[i]);
+            session_cache[i] = NULL;
+        }
     }
 }
+
 
 
 int form_dns_requests(dns_context *dns_ctx, const char *hostname)

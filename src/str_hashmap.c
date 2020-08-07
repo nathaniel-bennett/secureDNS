@@ -67,13 +67,8 @@ hsmap *str_hashmap_create(int num_buckets)
 }
 
 
-/**
- * Frees all entries from the given string hashmap \p map, and frees
- * the values of each entry using \p free_func.
- * @param map The map to free.
- * @param free_func The function used to free each value from the hashmap.
- */
-void str_hashmap_deep_free(hsmap *map, void (*free_func)(void*))
+
+void str_hashmap_clear(hsmap *map, void (*free_func)(void*))
 {
     hsmap_node *cur = NULL;
     hsmap_node *tmp = NULL;
@@ -90,7 +85,20 @@ void str_hashmap_deep_free(hsmap *map, void (*free_func)(void*))
             free(cur);
             cur = tmp;
         }
+        map->buckets[i] = NULL;
     }
+}
+
+
+/**
+ * Frees all entries from the given string hashmap \p map, and frees
+ * the values of each entry using \p free_func.
+ * @param map The map to free.
+ * @param free_func The function used to free each value from the hashmap.
+ */
+void str_hashmap_deep_free(hsmap *map, void (*free_func)(void*))
+{
+    str_hashmap_clear(map, free_func);
 
     free(map->buckets);
     free(map);

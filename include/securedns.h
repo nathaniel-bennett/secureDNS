@@ -83,6 +83,43 @@
 int getaddrinfo_fd(const char *node);
 
 
+/**
+ * Sets the address of the recursive resolver to be connected to for DNS over 
+ * TLS lookups. If @p addr is 0, the default resolver (1.1.1.1) will be used
+ * and the @p hostname will be ignored. This function should not be called
+ * while non-blocking DNS lookups are being performed, as any pending lookups
+ * will be dropped and their associated file descriptors will be closed.
+ * @param addr The recursive resolver server address to be used for DoT DNS 
+ * lookups. This address should be in network byte order (which can be 
+ * accomplished by using the `htonl()` function on most systems).
+ * @param hostname The hostname associated with the recursive resolver. The 
+ * hostname of the recursive resolver is required for adequate certificate 
+ * verification to be performed in the TLS handshake. @p hostname must be a
+ * null-terminated ASCII string that does not exceed 253 characters in length.
+ * @return 0 if successfull; or -1 if an error occured (either `hostname` 
+ * is null or its string length exceeds the maximum size).
+ */
+int getaddrinfo_set_resolver(in_addr_t addr, char *hostname);
+
+
+/**
+ * Retrieves the address of the recursive resolver server currently in use 
+ * by the `getaddrinfo()` function for DNS over TLS lookups.
+ * @param addr The IPv4 address of the recursive resolver to use. The returned 
+ * address will be in network byte order (which can be converted 
+ * using the `ntohl()` function on most systems). 
+ */
+in_addr_t getaddrinfo_resolver_addr();
+
+/**
+ * Retrieves the hostname of the recursive resolver in use for DNS over TLS
+ * queries. This hostname is a null-terminated string that will not exceed
+ * 253 characters in size (not including the null-terminating bit).
+ * @returns The hostname of the recursive resolver currently being used.
+ */
+char *getaddrinfo_resolver_hostname();
+
+
 int WRAPPER_getaddrinfo(const char *node, const char *service,
             const struct addrinfo *hints, struct addrinfo **res);
 

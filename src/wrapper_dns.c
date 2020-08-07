@@ -12,11 +12,13 @@
 #include "saved_contexts.h"
 #include "resource_records.h"
 
-#define CLOUDFARE_IP ((in_addr_t) 0x01010101)
+#define CLOUDFARE_IP ((uint32_t) 0x01010101)
+#define CLOUDFARE_HOSTNAME "cloudflare-dns.com"
 #define DNS_OVER_TLS_PORT 853
-
+#define MAX_HOSTNAME 253
 
 static in_addr_t dns_addr = 0x00000000;
+static char dns_hostname[MAX_HOSTNAME+1] = {0};
 
 
 int check_bad_input(const char *node,
@@ -25,21 +27,56 @@ int check_bad_input(const char *node,
 int get_errno_error();
 void clear_global_errors();
 
-/**
- * Adds additional functionality to the usual getaddrinfo function, and
- *
- * @param node
- * @param service
- * @param hints
- * @param res
- * @return
- */
+
+
+int getaddrinfo_set_resolver(in_addr_t addr, char *hostname)
+{
+    clear_global_errors();
+
+    if (addr == 0) {
+        memset(dns_hostname, 0, MAX_HOSTNAME+1);
+        dns_addr = addr;
+        return 0;
+    }
+
+    if (hostname == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    int hostname_len = strlen(hostname);
+    if (hostname_len > MAX_HOSTNAME) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    dns_addr = addr;
+
+    memset(dns_hostname, 0, MAX_HOSTNAME+1);
+    memcpy(dns_hostname, hostname, hostname_len);
+
+    clear_saved_dns_contexts();
+    clear_session_cache();
+    return 0;
+}
+
+in_addr_t getaddrinfo_resolver_addr()
+{
+    return (dns_addr == 0) ? htonl(CLOUDFARE_IP) : dns_addr;
+}
+
+char *getaddrinfo_resolver_hostname()
+{
+    return (strlen(dns_hostname) == 0) ? CLOUDFARE_HOSTNAME : dns_hostname;
+}
+
+
 int WRAPPER_getaddrinfo(const char *node, const char *service,
             const struct addrinfo *hints, struct addrinfo **res)
 {
     const struct sockaddr_in addr = {
         .sin_family = AF_INET,
-        .sin_addr.s_addr = htonl(dns_addr == 0 ? CLOUDFARE_IP : dns_addr),
+        .sin_addr.s_addr = (dns_addr == 0) ? htonl(CLOUDFARE_IP) : dns_addr,
         .sin_port = htons(DNS_OVER_TLS_PORT),
     };
     dns_context *dns_ctx = NULL;
@@ -216,6 +253,8 @@ const char *WRAPPER_gai_strerror(int errcode)
         return "Unknown error";
     }
 }
+
+
 
 
 

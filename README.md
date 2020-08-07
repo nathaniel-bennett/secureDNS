@@ -30,21 +30,20 @@ noted, however, that this project is in Beta stage development--it should not
 be relied on for any critical systems.
 
 ### Current Features
- - DNS over TLS (DoT) lookup using TLS 1.3 & the strongest ciphers
+ - DNS over TLS (DoT) lookup using TLS 1.3 and strong default ciphers
  - IPv4 and IPv6 both supported
  - Asynchronous DNS resolution
  - Can handle an arbitrary number of asynchronous DNS queries at the same time 
- - In-memory DNS record caching/reuse for the duration of the record's TTL
+ - In-memory DNS record caching/reuse that conforms to record TTL constraints 
  - TLS session caching and resumption to significantly improve handshake speed 
  
 ### Features to be Added Soon
- - The ability to choose a DoH recursive resolver server other than the 
- default 1.1.1.1 server
  - A slew of tests
  - Documentation
  - Integration into the SecureSockets Library
  
 ### Features for Later
+ - Automatic installation
  - MacOS, Windows & BSD support
  - Automatic switching to a backup server when connections with the main 
  server fail 

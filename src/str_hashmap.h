@@ -27,6 +27,9 @@ void str_hashmap_free(hsmap *map);
  */
 
 
+void str_hashmap_clear(hsmap *map, void (*free_func)(void*));
+
+
 /**
  * Frees all entries from the given string hashmap \p map, and frees
  * the values of each entry using \p free_func.

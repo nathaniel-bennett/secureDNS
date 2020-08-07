@@ -53,6 +53,8 @@ int get_ssl_error(dns_context *dns_ctx, int ssl_ret);
 
 void parse_next_resp_size(dns_context *dns_ctx);
 
+void clear_session_cache();
+
 
 
 
