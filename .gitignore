@@ -10,3 +10,7 @@
 # CLion-specific files
 .idea/
 cmake-build-debug
+
+# Object files/libraries
+src/*.o
+libsecuredns.a
