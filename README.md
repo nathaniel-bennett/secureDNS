@@ -18,8 +18,8 @@ non-blocking DNS resolution with multiplexing functions like `poll()` or
 connect to for DNS over TLS resolution), but the library is kept 
 as simple as possible to allow for easy adoption in a wide variety of new 
 or existing C/C++ projects.
- 
- 
+
+
 # Project Status
 
 This library is being actively worked on and tested. There are no planned 
@@ -36,7 +36,7 @@ be relied on for any critical systems.
  - Can handle an arbitrary number of asynchronous DNS queries at the same time 
  - In-memory DNS record caching/reuse that conforms to record TTL constraints 
  - TLS session caching and resumption to significantly improve handshake speed 
- - API function to set the recursive resolver to connect to 
+ - Ability to set a custom recursive resolver address to use for DNS lookups 
  
 ### Features to be Added Soon
  - A slew of tests
