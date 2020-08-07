@@ -36,6 +36,7 @@ be relied on for any critical systems.
  - Can handle an arbitrary number of asynchronous DNS queries at the same time 
  - In-memory DNS record caching/reuse that conforms to record TTL constraints 
  - TLS session caching and resumption to significantly improve handshake speed 
+ - API function to set the recursive resolver to connect to 
  
 ### Features to be Added Soon
  - A slew of tests
