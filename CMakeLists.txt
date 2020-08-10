@@ -1,9 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
-project(securedns C CXX)
-
-
+project(securedns C)
 set(CMAKE_C_STANDARD 90)
-set(CMAKE_CXX_STANDARD 11)
 
 set(CMAKE_C_FLAGS "-D_GNU_SOURCE")
 
@@ -28,16 +25,16 @@ add_library(securedns
         src/str_hashmap.h)
 
 add_executable(simple_test
-        tests/simple_test.cpp
+        tests/simple_test.c
         include/securedns.h)
 target_link_libraries(simple_test "securedns")
 
 add_executable(async_test
-        tests/async_test.cpp
+        tests/async_test.c
         include/securedns.h)
 target_link_libraries(async_test "securedns")
 
 add_executable(poll_test
-        tests/poll_test.cpp
+        tests/poll_test.c
         include/securedns.h)
 target_link_libraries(poll_test "securedns")
