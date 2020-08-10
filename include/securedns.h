@@ -99,7 +99,7 @@ int getaddrinfo_fd(const char *node);
  * @return 0 if successfull; or -1 if an error occured (either `hostname` 
  * is null or its string length exceeds the maximum size).
  */
-int getaddrinfo_set_resolver(in_addr_t addr, char *hostname);
+int getaddrinfo_set_nameserver(in_addr_t addr, const char *hostname);
 
 
 /**
@@ -109,7 +109,7 @@ int getaddrinfo_set_resolver(in_addr_t addr, char *hostname);
  * address will be in network byte order (which can be converted 
  * using the `ntohl()` function on most systems). 
  */
-in_addr_t getaddrinfo_resolver_addr();
+in_addr_t getaddrinfo_nameserver_addr();
 
 /**
  * Retrieves the hostname of the recursive resolver in use for DNS over TLS
@@ -117,7 +117,7 @@ in_addr_t getaddrinfo_resolver_addr();
  * 253 characters in size (not including the null-terminating bit).
  * @returns The hostname of the recursive resolver currently being used.
  */
-char *getaddrinfo_resolver_hostname();
+const char *getaddrinfo_nameserver_hostname();
 
 
 int WRAPPER_getaddrinfo(const char *node, const char *service,

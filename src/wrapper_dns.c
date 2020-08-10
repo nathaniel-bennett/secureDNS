@@ -29,48 +29,6 @@ void clear_global_errors();
 
 
 
-int getaddrinfo_set_resolver(in_addr_t addr, char *hostname)
-{
-    clear_global_errors();
-
-    if (addr == 0) {
-        memset(dns_hostname, 0, MAX_HOSTNAME+1);
-        dns_addr = addr;
-        return 0;
-    }
-
-    if (hostname == NULL) {
-        errno = EINVAL;
-        return -1;
-    }
-
-    int hostname_len = strlen(hostname);
-    if (hostname_len > MAX_HOSTNAME) {
-        errno = EINVAL;
-        return -1;
-    }
-
-    dns_addr = addr;
-
-    memset(dns_hostname, 0, MAX_HOSTNAME+1);
-    memcpy(dns_hostname, hostname, hostname_len);
-
-    clear_saved_dns_contexts();
-    clear_session_cache();
-    return 0;
-}
-
-in_addr_t getaddrinfo_resolver_addr()
-{
-    return (dns_addr == 0) ? htonl(CLOUDFARE_IP) : dns_addr;
-}
-
-char *getaddrinfo_resolver_hostname()
-{
-    return (strlen(dns_hostname) == 0) ? CLOUDFARE_HOSTNAME : dns_hostname;
-}
-
-
 int WRAPPER_getaddrinfo(const char *node, const char *service,
             const struct addrinfo *hints, struct addrinfo **res)
 {
@@ -203,6 +161,50 @@ int getaddrinfo_fd(const char *node)
     else
         return dns_ctx->fd;
 }
+
+
+int getaddrinfo_set_nameserver(in_addr_t addr, const char *hostname)
+{
+    clear_global_errors();
+
+    if (addr == 0) {
+        memset(dns_hostname, 0, MAX_HOSTNAME+1);
+        dns_addr = addr;
+        return 0;
+    }
+
+    if (hostname == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    int hostname_len = strlen(hostname);
+    if (hostname_len > MAX_HOSTNAME) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    dns_addr = addr;
+
+    memset(dns_hostname, 0, MAX_HOSTNAME+1);
+    memcpy(dns_hostname, hostname, hostname_len);
+
+    clear_saved_dns_contexts();
+    clear_session_cache();
+    return 0;
+}
+
+in_addr_t getaddrinfo_nameserver_addr()
+{
+    return (dns_addr == 0) ? htonl(CLOUDFARE_IP) : dns_addr;
+}
+
+const char *getaddrinfo_nameserver_hostname()
+{
+    return (strlen(dns_hostname) == 0) ? CLOUDFARE_HOSTNAME : dns_hostname;
+}
+
+
 
 
 void WRAPPER_freeaddrinfo(struct addrinfo *res)
