@@ -271,6 +271,8 @@ hsmap_iterator *hsmap_iterator_start(hsmap *map)
         return NULL;
 
     iter->prev = NULL;
+
+    return iter;
 }
 
 
