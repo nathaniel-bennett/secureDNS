@@ -1,19 +1,104 @@
 extern "C" {
 
-#include <netdb.h>
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/poll.h>
-
+#include <netdb.h>
 #include "../include/securedns.h"
 
+#define NUM_HOSTS 6
+#define PORT "80"
 
-#define HOST "yahoo.com"
+const char *hosts[NUM_HOSTS] = {"example1.com", "example2.com", "example3.com"
+                                "example4.com", "example5.com", "example6.com"};
+
 
 void print_addrinfo(struct addrinfo *info);
 
+
+int main(int argc, char **argv) {
+
+    struct addrinfo *addresses[NUM_HOSTS];
+    pollfd pfds[NUM_HOSTS] = {0};
+
+    int num_querying = NUM_HOSTS;
+    int ret, i;
+
+    struct addrinfo hints = {
+        .ai_flags = AI_TLS | AI_NONBLOCKING,
+        .ai_family = AF_INET,
+        .ai_socktype = SOCK_STREAM,
+    };
+
+    for (i = 0; i < NUM_HOSTS; i++) {
+
+        ret = getaddrinfo(hosts[i], PORT, &hints, &addresses[i]);
+        switch(ret) {
+        case 0:
+            pfds[i].fd = -1;
+            num_querying -= 1;
+            continue;
+        
+        case EAI_WANT_READ:
+            pfds[i].events = POLLIN;
+            break;
+        
+        case EAI_WANT_WRITE:
+            pfds[i].events = POLLOUT;
+            break;
+        
+        default:
+            exit(1); /* getaddrinfo() returned an error */
+        }
+
+        pfds[i].fd = getaddrinfo_fd(hosts[i]);
+    }
+
+    while (num_querying > 0) {
+
+        ret = poll(pfds, NUM_HOSTS, -1);
+        if (ret < 0)
+            exit(1); /* poll() failed */
+
+        for (i = 0; i < NUM_HOSTS; i++) {
+
+            if (pfds[i].revents == 0)
+                continue;
+
+            if (pfds[i].revents != POLLIN && pfds[i].revents != POLLOUT)
+                exit(1); /* an error occurred on the file descriptor */
+
+            ret = getaddrinfo(hosts[i], PORT, &hints, &addresses[i]);
+            switch(ret) {
+            case 0:
+                pfds[i].fd = -1;
+                num_querying -= 1;
+                continue;
+            
+            case EAI_WANT_READ:
+                pfds[i].events = POLLIN;
+                break;
+            
+            case EAI_WANT_WRITE:
+                pfds[i].events = POLLOUT;
+                break;
+            
+            default:
+                exit(1); /* getaddrinfo() returned an error */
+            }
+        }
+    }
+
+    for (i = 0; i < NUM_HOSTS; i++)
+        print_addrinfo(addresses[i]);
+
+    /* now all of `addresses` is filled */
+}
+
+/*
 int main(int argc, char **argv) {
 
     struct addrinfo hints = {0};
@@ -30,7 +115,7 @@ int main(int argc, char **argv) {
     do {
         printf("still going...\n");
 
-        ret = getaddrinfo(HOST, "80", &hints, &res);
+        ret = getaddrinfo(HOST, PORT, &hints, &res);
         if (ret != EAI_WANT_WRITE && ret != EAI_WANT_READ)
             break;
 
@@ -62,7 +147,6 @@ int main(int argc, char **argv) {
 
     print_addrinfo(res);
 
-    /*
     int sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
     if (sock < 0) {
         perror("Socket failed");
@@ -92,11 +176,12 @@ int main(int argc, char **argv) {
     printf("Received: %s\n", buf);
 
     close(sock);
-    */
 
     freeaddrinfo(res);
     return 0;
 }
+
+*/
 
 void print_addrinfo(struct addrinfo *info) {
     int i;
