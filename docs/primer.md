@@ -10,9 +10,9 @@ at the top of any source files you intend to use DNS over TLS in:
 #include <securedns.h>
 ```
 
-## A Refresher on Getaddrinfo
+## A Refresher on `getaddrinfo` 
 
-The following is taken from the `getaddrinfo` man page.
+The following is taken from the `getaddrinfo` man page. 
 
 ```c
 #include <sys/types.h>
@@ -90,18 +90,19 @@ The flags are:
 > Performs the DNS lookup using TLS encryption over port 853 (DNS over TLS). 
 
 > ### AI_NONBLOCKING
-> Has the DNS lookup return early rather than blocking for connections or I/O.
+> Has the DNS lookup return early rather than blocking for connections or I/O. 
 > If this flag is set, the `getaddrinfo` function will return `EAI_WOULD_READ` 
 > if the internal connection is waiting on a read operation, or 
 > `EAI_WOULD_WRITE` if the internal connection is waiting on a write operation. 
-> This option may only be used in conjunction with `AI_TLS`.
+> Once the operation will complete without blocking, 0 will be returned. 
+> This option may only be used in conjunction with `AI_TLS`. 
 
 > ### AI_CANONNAME
 > As the DNS lookup return the canon name associated with each address in the 
 > returned addrinfo structure. This flag has no effect when `AI_TLS` is used, 
-> as canon names are populated into the struct by default.
+> as canon names are populated into the struct by default. 
 
-## Applying DoT Lookup to Existing Code
+## Applying DNS Over TLS Functionality to Existing Code
 
 One of the SecureDNS library's main focuses is to make it trivially easy for 
 existing code to upgrade plaintext DNS resolution to that of DNS over TLS. 
@@ -265,7 +266,7 @@ Despite the increase in complexity, adding DNS over TLS support remains as
 simple as it was before--adding `#include <securedns>` and `AI_TLS` in the 
 correct locations are all that is needed.
 
-## Changing the Nameserver to Use for DNS Over TLS
+## Changing the Nameserver in use for DNS Over TLS
 
 By default, any DNS over TLS lookups done through `getaddrinfo()` will query 
 Cloudflare's [1.1.1.1](cloudflare-dns.com) nameserver. This was chosen as the 
@@ -416,13 +417,13 @@ int main(int argc, char **argv) {
 ```
 
 To retrieve the file descriptor associated with an actively-running DNS lookup, 
-the following function can be used:
+the following function can be used: 
 ```c
 int getaddrinfo_fd(const char *node);
 ```
 `node` should be the hostname for which the DNS lookup is being performed for. 
 The function will return the file descriptor for the DNS lookup, or -1 if 
-`node` was not associated with any active DNS lookup.
+`node` was not associated with any active DNS lookup. 
 
 Multiple nonblocking `getaddrinfo()` lookups can be performed at the same time; 
 however, multiple lookups for the same hostname will all perform one lookup on 
@@ -432,8 +433,10 @@ nonblocking lookup that requests IPv4 addresses for `example.com` will utilize
 the same underlying connection as a nonblocking lookup that requests IPv6 
 addresses for `example.com`. This saves unnecessary connections and allows for 
 easier DNS record caching, but may lead to unexpected behavior for code that 
-expects file descriptors to be unique in this case.
+expects file descriptors to be unique in this case. 
 
+<!--
 For a more comprehensive example of an `epoll` server utilizing nonblocking 
 DNS resolution alongside nonblocking connections and I/O, see 
-[here](../examples/nonblocking.c)
+[here](../examples/nonblocking.c). 
+ -->
