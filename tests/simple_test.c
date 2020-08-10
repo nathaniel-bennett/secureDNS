@@ -1,14 +1,12 @@
-extern "C" {
-
 #include <netdb.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
 #include <unistd.h>
+#include <string.h>
 
 #include "../include/securedns.h"
 
-void print_addrinfo(struct addrinfo *info);
+    void print_addrinfo(struct addrinfo *info);
 
 int main(int argc, char **argv) {
 
@@ -16,29 +14,72 @@ int main(int argc, char **argv) {
     struct addrinfo *res;
     int ret;
 
-    hints.ai_family = AF_INET6;
+    hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = 0;
-    hints.ai_flags = AI_TLS | AI_NONBLOCKING;
+    hints.ai_flags = AI_TLS;
 
-    do {
-        ret = getaddrinfo("google.com", "80", &hints, &res);
-        if (ret != EAI_WANT_WRITE && ret != EAI_WANT_READ)
-            break;
-
-        printf("still going...\n");
-        sleep(1);
-    } while (1);
-
+    ret = getaddrinfo("deccio.byu.edu", "80", &hints, &res);
     if (ret != 0) {
         printf("getaddrinfo failed with code %i: %s\n",
-               ret, gai_strerror(ret));
+                    ret, gai_strerror(ret));
         if (ret == EAI_SYSTEM)
             perror("EAI_SYSTEM errno");
         return 1;
     }
 
     print_addrinfo(res);
+    freeaddrinfo(res);
+
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_DGRAM;
+    hints.ai_protocol = 0;
+
+    ret = getaddrinfo("intel.com", "80", &hints, &res);
+    if (ret != 0) {
+        printf("getaddrinfo failed with code %i: %s\n",
+                ret, gai_strerror(ret));
+        if (ret == EAI_SYSTEM)
+            perror("EAI_SYSTEM errno");
+        return 1;
+    }
+
+    print_addrinfo(res);
+    freeaddrinfo(res);
+
+
+    hints.ai_family = AF_INET6;
+    hints.ai_socktype = SOCK_DGRAM;
+    hints.ai_protocol = 0;
+
+    ret = getaddrinfo("google.com", "80", &hints, &res);
+    if (ret != 0) {
+        printf("getaddrinfo failed with code %i: %s\n",
+                ret, gai_strerror(ret));
+        if (ret == EAI_SYSTEM)
+            perror("EAI_SYSTEM errno");
+        return 1;
+    }
+
+    print_addrinfo(res);
+    freeaddrinfo(res);
+
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = 0;
+
+    ret = getaddrinfo("google.com", "80", &hints, &res);
+    if (ret != 0) {
+        printf("getaddrinfo failed with code %i: %s\n",
+                ret, gai_strerror(ret));
+        if (ret == EAI_SYSTEM)
+            perror("EAI_SYSTEM errno");
+        return 1;
+    }
+
+    print_addrinfo(res);
+    freeaddrinfo(res);
+
 
     /*
     int sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
@@ -70,9 +111,8 @@ int main(int argc, char **argv) {
     printf("Received: %s\n", buf);
 
     close(sock);
-    */
+        */
 
-    freeaddrinfo(res);
     return 0;
 }
 
@@ -108,7 +148,7 @@ void print_addrinfo(struct addrinfo *info) {
         printf("unknown (%i)\n", info->ai_protocol);
 
     printf("ai_canonname: %s\n",
-           info->ai_canonname ? info->ai_canonname : "NULL");
+                info->ai_canonname ? info->ai_canonname : "NULL");
 
     printf("ai_addrlen: %i\n", info->ai_addrlen);
 
@@ -142,6 +182,3 @@ void print_addrinfo(struct addrinfo *info) {
         printf("NULL\n\n");
     }
 }
-
-}
-

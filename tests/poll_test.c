@@ -1,6 +1,3 @@
-extern "C" {
-
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -22,7 +19,7 @@ void print_addrinfo(struct addrinfo *info);
 int main(int argc, char **argv) {
 
     struct addrinfo *addresses[NUM_HOSTS];
-    pollfd pfds[NUM_HOSTS] = {0};
+    struct pollfd pfds[NUM_HOSTS] = {0};
 
     int num_querying = NUM_HOSTS;
     int ret, i;
@@ -249,6 +246,3 @@ void print_addrinfo(struct addrinfo *info) {
         printf("NULL\n\n");
     }
 }
-
-}
-
