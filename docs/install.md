@@ -27,7 +27,7 @@ When compiling a project that uses the secureDNS library, you need to add the
 following flags: `-lsecuredns -lssl -lcrypto`. The `-lssl` and `-lcrypto` are 
 OpenSSL's libraries, so in order to build a project you'll need to make sure 
 it's installed as well (`sudo apt install openssl` and 
-`sudo apt install libssl-dev` for Ubuntu; replace `apt` with `dnf` for Debian).
-From there, you're good to go!
+`sudo apt install libssl-dev` for Ubuntu; replace `apt` with `dnf` for Debian). 
+Note that OpenSSL 1.1.1a and newer is required for the library to work.
 
 For a good primer on using the library, head [here](primer.md).
