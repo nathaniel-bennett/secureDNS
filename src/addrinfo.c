@@ -37,6 +37,11 @@ int convert_records(dns_rr *records, const char *service,
         response = convert_individual_record(curr_record,
                     service, family, socktype, protocol, &curr_info);
         if (response == 0) {
+            if (!(hints->ai_flags & AI_CANONNAME)) {
+                free(curr_info->ai_canonname);
+                curr_info->ai_canonname = NULL;
+            }
+
             if (*res == NULL)
                 *res = curr_info;
             else
