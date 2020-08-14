@@ -153,7 +153,7 @@ end:
     return response;
 }
 
-int getaddrinfo_fd(const char *node)
+int gai_get_fd(const char *node)
 {
     dns_context *dns_ctx = get_saved_dns_context(node);
     if (dns_ctx == NULL)
@@ -163,7 +163,7 @@ int getaddrinfo_fd(const char *node)
 }
 
 
-int getaddrinfo_set_nameserver(in_addr_t addr, const char *hostname)
+int gai_set_nameserver(in_addr_t addr, const char *hostname)
 {
     clear_global_errors();
 
@@ -194,12 +194,12 @@ int getaddrinfo_set_nameserver(in_addr_t addr, const char *hostname)
     return 0;
 }
 
-in_addr_t getaddrinfo_nameserver_addr()
+in_addr_t gai_nameserver_addr()
 {
     return (dns_addr == 0) ? htonl(CLOUDFARE_IP) : dns_addr;
 }
 
-const char *getaddrinfo_nameserver_hostname()
+const char *gai_nameserver_host()
 {
     return (strlen(dns_hostname) == 0) ? CLOUDFARE_HOSTNAME : dns_hostname;
 }

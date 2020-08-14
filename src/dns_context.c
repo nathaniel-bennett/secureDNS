@@ -63,12 +63,12 @@ dns_context *dns_context_new(const char *hostname, int is_nonblocking)
     if (dns_ctx->ssl == NULL)
         goto err;
 
-    ret = SSL_set1_host(dns_ctx->ssl, getaddrinfo_nameserver_hostname());
+    ret = SSL_set1_host(dns_ctx->ssl, gai_nameserver_host());
     if (ret != 1)
         goto err;
 
     ret = SSL_set_tlsext_host_name(dns_ctx->ssl,
-                                   getaddrinfo_nameserver_hostname());
+                                   gai_nameserver_host());
     if (ret != 1)
         goto err;
 

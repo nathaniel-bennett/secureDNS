@@ -80,7 +80,7 @@
  * @return The file descriptor in use internally for the DNS lookup of @p 
  * node, or -1 if @p node does not have a non-blocking lookup in process. 
  */
-int getaddrinfo_fd(const char *node);
+int gai_get_fd(const char *node);
 
 
 /**
@@ -99,7 +99,7 @@ int getaddrinfo_fd(const char *node);
  * @return 0 if successfull; or -1 if an error occured (either `hostname` 
  * is null or its string length exceeds the maximum size).
  */
-int getaddrinfo_set_nameserver(in_addr_t addr, const char *hostname);
+int gai_set_nameserver(in_addr_t addr, const char *hostname);
 
 
 /**
@@ -109,7 +109,7 @@ int getaddrinfo_set_nameserver(in_addr_t addr, const char *hostname);
  * address will be in network byte order (which can be converted 
  * using the `ntohl()` function on most systems). 
  */
-in_addr_t getaddrinfo_nameserver_addr();
+in_addr_t gai_nameserver_addr();
 
 /**
  * Retrieves the hostname of the recursive resolver in use for DNS over TLS
@@ -117,7 +117,7 @@ in_addr_t getaddrinfo_nameserver_addr();
  * 253 characters in size (not including the null-terminating bit).
  * @returns The hostname of the recursive resolver currently being used.
  */
-const char *getaddrinfo_nameserver_hostname();
+const char *gai_nameserver_host();
 
 
 int WRAPPER_getaddrinfo(const char *node, const char *service,

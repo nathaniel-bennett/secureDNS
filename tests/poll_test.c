@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
             exit(1); /* getaddrinfo() returned an error */
         }
 
-        pfds[i].fd = getaddrinfo_fd(hosts[i]);
+        pfds[i].fd = gai_get_fd(hosts[i]);
     }
 
     while (num_querying > 0) {
@@ -121,9 +121,9 @@ int main(int argc, char **argv) {
         else
             pfd.events = POLLOUT;
 
-        pfd.fd = getaddrinfo_fd(HOST);
+        pfd.fd = gai_get_fd(HOST);
         if (pfd.fd == -1) {
-            printf("getaddrinfo_fd failed\n");
+            printf("gai_get_fd failed\n");
             exit(1);
         }
 
