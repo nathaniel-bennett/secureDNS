@@ -19,6 +19,7 @@ connect to for DNS over TLS resolution), but the library is kept
 as simple as possible to allow for easy adoption in a wide variety of new 
 or existing C/C++ projects.
 
+For information on installing see [here](docs/install.md).
 
 # Project Status
 
@@ -40,7 +41,6 @@ be relied on for any critical systems.
  
 ### Features to be Added Soon
  - A slew of tests
- - Documentation
  - Integration into the SecureSockets Library
  
 ### Features for Later
@@ -52,7 +52,6 @@ be relied on for any critical systems.
  - Support for other SSL libraries (maybe...)
  
 # Using the Library
- 
 The SecureDNS library was designed to be as similar to the existing 
 `getaddrinfo()` implementation of DNS; because of this, refactoring legacy 
 code to use DNS over TLS becomes as easy as adding `#include <securedns.h>` 
