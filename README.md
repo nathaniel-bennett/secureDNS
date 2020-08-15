@@ -1,4 +1,4 @@
-# SecureDNS - Simple wrapper of the `getaddrinfo` function for DNS over TLS
+# SecureDNS - Transparent wrapper of the `getaddrinfo` function for DNS over TLS
 
 The SecureDNS library is a lightweight stub resolver implementation that 
 implements DNS over TLS (DoT). It is fully compatible with ANSI C, and only 
