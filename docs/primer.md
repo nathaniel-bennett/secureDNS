@@ -435,8 +435,5 @@ addresses for `example.com`. This saves unnecessary connections and allows for
 easier DNS record caching, but may lead to unexpected behavior for code that 
 expects file descriptors to be unique in this case. 
 
-<!--
-For a more comprehensive example of an `epoll` server utilizing nonblocking 
-DNS resolution alongside nonblocking connections and I/O, see 
-[here](../examples/nonblocking.c). 
- -->
+
+For more information on individual functions, see [the API documentation](api.md).
