@@ -10,6 +10,7 @@
 # CLion-specific files
 .idea/
 cmake-build-debug
+CMakeLists.txt
 
 # Object files/libraries
 src/*.o
