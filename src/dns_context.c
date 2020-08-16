@@ -18,63 +18,88 @@
 
 #define RESP_LEN_BYTESIZE 2
 
+#define NUM_CA_FILES 6
+#define NUM_CA_FOLDERS 6
 
-#define UBUNTU_CA_FOLDER "/etc/ssl/certs"
+static const char *CA_FILES[NUM_CA_FILES] = {
+    "/etc/ssl/certs/ca-certificates.crt", /* Debian/Ubuntu/Gentoo etc. */
+    "/etc/pki/tls/certs/ca-bundle.crt",   /* Fedora/RHEL 6 */
+    "/etc/ssl/ca-bundle.pem",             /* OpenSUSE */
+    "/etc/pki/tls/cacert.pem",            /* OpenELEC */
+    "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem", /* CentOS/RHEL 7 */
+    "/etc/ssl/cert.pem",                  /* Alpine Linux */
+};
+
+static const char *CA_FOLDERS[NUM_CA_FOLDERS] = {
+    "/etc/ssl/certs",               /* SLES10/SLES11 */
+    "/system/etc/security/cacerts", /* Android */
+    "/usr/local/share/certs",       /* FreeBSD */
+    "/etc/pki/tls/certs",           /* Fedora/RHEL */
+    "/etc/openssl/certs",           /* NetBSD */
+    "/var/ssl/certs",               /* AIX */
+};
 
 
 static SSL_CTX *ssl_ctx = NULL; /* to allow for session resumption/caching */
 static SSL_SESSION *session_cache[MAX_SESSIONS] = {0};
 
-void setup_ssl_ctx();
+int setup_ssl_ctx();
 void cleanup_ssl();
 
 int canonicalize_name(const char *name, char **canon_name);
+int load_verify_locations();
 int new_session_cb(SSL *ssl, SSL_SESSION *new_session);
 void set_session(SSL *ssl);
 
 
 
 
-dns_context *dns_context_new(const char *hostname, int is_nonblocking)
+int dns_context_new(const char *hostname,
+            int is_nonblocking, dns_context **context)
 {
     dns_context *dns_ctx = NULL;
     int type = SOCK_STREAM | SOCK_CLOEXEC;
-    int ret;
+    int ret, error;
 
     if (ssl_ctx == NULL) {
-        setup_ssl_ctx();
-
-        if (ssl_ctx == NULL)
-            goto err;
+        ret = setup_ssl_ctx();
+        if (ret != 0)
+            return EAI_TLS;
     }
 
     dns_ctx = calloc(1, sizeof(dns_context));
     if (dns_ctx == NULL)
-        return NULL;
+        return EAI_MEMORY;
 
     if (is_nonblocking)
         type |= SOCK_NONBLOCK;
 
     dns_ctx->fd = socket(AF_INET, type, 0);
-    if (dns_ctx->fd == -1)
+    if (dns_ctx->fd == -1) {
+        error = EAI_SYSTEM;
         goto err;
+    }
 
     dns_ctx->ssl = SSL_new(ssl_ctx);
-    if (dns_ctx->ssl == NULL)
+    if (dns_ctx->ssl == NULL) {
+        error = EAI_MEMORY;
         goto err;
+    }
 
     ret = SSL_set1_host(dns_ctx->ssl, gai_nameserver_host());
-    if (ret != 1)
+    if (ret != 1) {
+        error = EAI_MEMORY;
         goto err;
+    }
 
     ret = SSL_set_tlsext_host_name(dns_ctx->ssl,
                                    gai_nameserver_host());
-    if (ret != 1)
+    if (ret != 1) {
+        error = EAI_MEMORY;
         goto err;
+    }
 
-    ret = SSL_set_fd(dns_ctx->ssl, dns_ctx->fd);
-    if (ret != 1)
-        goto err;
+    SSL_set_fd(dns_ctx->ssl, dns_ctx->fd);
 
     set_session(dns_ctx->ssl);
 
@@ -84,16 +109,19 @@ dns_context *dns_context_new(const char *hostname, int is_nonblocking)
     dns_ctx->responses_left = DNS_REQUEST_CNT;
 
     ret = add_saved_dns_context(hostname, dns_ctx);
-    if (ret != 0)
+    if (ret != 0) {
+        error = EAI_MEMORY;
         goto err;
+    }
 
-    return dns_ctx;
+    *context = dns_ctx;
+    return 0;
 
 err:
     if (dns_ctx != NULL)
         dns_context_free(dns_ctx);
 
-    return NULL;
+    return error;
 }
 
 
@@ -112,7 +140,7 @@ void dns_context_free(dns_context *dns_ctx)
 }
 
 
-void setup_ssl_ctx()
+int setup_ssl_ctx()
 {
     int ret;
 
@@ -135,9 +163,8 @@ void setup_ssl_ctx()
 
     SSL_CTX_set_block_padding(ssl_ctx, BLOCK_PADDING_LENGTH);
 
-    /* TODO: support more than Ubuntu CA locations */
-    ret = SSL_CTX_load_verify_locations(ssl_ctx, NULL, UBUNTU_CA_FOLDER);
-    if (ret != 1)
+    ret = load_verify_locations();
+    if (ret < 0)
         goto err;
 
 
@@ -149,15 +176,44 @@ void setup_ssl_ctx()
     SSL_CTX_set_mode(ssl_ctx, SSL_MODE_ENABLE_PARTIAL_WRITE);
 
     atexit(cleanup_ssl);
-    return;
+    return 0;
 
 err:
     if (ssl_ctx != NULL)
         SSL_CTX_free(ssl_ctx);
     ssl_ctx = NULL;
+
+    return -1;
 }
 
-int new_session_cb(SSL *ssl, SSL_SESSION *new_session)
+int load_verify_locations()
+{
+    int ret, i;
+
+    for (i = 0; i < NUM_CA_FILES; i++) {
+        if (access(CA_FILES[i], R_OK) != 0)
+            continue;
+
+        ret = SSL_CTX_load_verify_locations(ssl_ctx, CA_FILES[i], NULL);
+        if (ret != 1)
+            continue;
+
+        return 0;
+    }
+
+    for (i = 0; i < NUM_CA_FOLDERS; i++) {
+        if (access(CA_FOLDERS[i], F_OK) != 0)
+            continue;
+
+        ret = SSL_CTX_load_verify_locations(ssl_ctx, NULL, CA_FOLDERS[i]);
+        if (ret != 1)
+            continue;
+    }
+
+    return -1;
+}
+
+int new_session_cb(__attribute__((unused)) SSL *ssl, SSL_SESSION *new_session)
 {
     int i;
 

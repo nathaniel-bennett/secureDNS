@@ -44,7 +44,9 @@ struct dns_context_st {
 };
 
 
-dns_context *dns_context_new(const char *hostname, int is_nonblocking);
+int dns_context_new(const char *hostname,
+            int is_nonblocking, dns_context **context);
+
 void dns_context_free(dns_context *dns_ctx);
 
 int form_dns_requests(dns_context *dns_ctx, const char *hostname);

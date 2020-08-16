@@ -57,9 +57,9 @@ int WRAPPER_getaddrinfo(const char *node, const char *service,
 
     dns_ctx = get_saved_dns_context(node);
     if (dns_ctx == NULL) {
-        dns_ctx = dns_context_new(node, hints->ai_flags & AI_NONBLOCKING);
-        if (dns_ctx == NULL)
-            return EAI_MEMORY;
+        ret = dns_context_new(node, hints->ai_flags & AI_NONBLOCKING, &dns_ctx);
+        if (ret != 0)
+            return ret;
     }
 
     switch (dns_ctx->state) {
@@ -251,7 +251,7 @@ const char *WRAPPER_gai_strerror(int errcode)
     case EAI_WANT_WRITE:
         return "Sending data to dns server would block";
     case EAI_TLS:
-        return "Authentication error with dns server";
+        return "TLS setup/authentication error";
     default:
         return "Unknown error";
     }

@@ -142,7 +142,7 @@ on network resources.
 on network services.
 
 - **EAI_TLS** - An error occurred while performing TLS authentication with the 
-nameserver.
+nameserver, or while attempting to load in Certificate Authority certificates.
 
 #
 
