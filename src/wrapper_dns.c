@@ -153,6 +153,7 @@ end:
     return response;
 }
 
+
 int gai_get_fd(const char *node)
 {
     dns_context *dns_ctx = get_saved_dns_context(node);
@@ -194,17 +195,17 @@ int gai_set_nameserver(in_addr_t addr, const char *hostname)
     return 0;
 }
 
+
 in_addr_t gai_nameserver_addr()
 {
     return (dns_addr == 0) ? htonl(CLOUDFARE_IP) : dns_addr;
 }
 
+
 const char *gai_nameserver_host()
 {
     return (strlen(dns_hostname) == 0) ? CLOUDFARE_HOSTNAME : dns_hostname;
 }
-
-
 
 
 void WRAPPER_freeaddrinfo(struct addrinfo *res)
@@ -257,11 +258,6 @@ const char *WRAPPER_gai_strerror(int errcode)
 }
 
 
-
-
-
-
-
 int check_bad_input(const char *node,
             const char *service, const struct addrinfo *hints)
 {
@@ -280,20 +276,18 @@ int check_bad_input(const char *node,
         return EAI_BADFLAGS;
 
     if (hints->ai_family != AF_UNSPEC && hints->ai_family != AF_INET
-        && hints->ai_family != AF_INET6)
+                && hints->ai_family != AF_INET6)
         return EAI_FAMILY;
 
     if (hints->ai_socktype != 0 && hints->ai_socktype != SOCK_STREAM
-        && hints->ai_socktype != SOCK_DGRAM)
+                && hints->ai_socktype != SOCK_DGRAM)
         return EAI_SOCKTYPE;
 
     if (hints->ai_protocol != 0 && hints->ai_protocol != IPPROTO_TCP
-        && hints->ai_protocol != IPPROTO_UDP)
+                && hints->ai_protocol != IPPROTO_UDP)
         return EAI_SERVICE;
 
 
-    if (hints->ai_socktype == SOCK_RAW)
-        return EAI_SERVICE;
     if (hints->ai_socktype == SOCK_STREAM
                 && hints->ai_protocol == IPPROTO_UDP)
         return EAI_SOCKTYPE;
