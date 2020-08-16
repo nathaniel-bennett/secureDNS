@@ -8,8 +8,10 @@
 #include "../include/securedns.h"
 
 
-int convert_individual_record(dns_rr *record, const char *service,
-    int family, int socktype, int protocol, struct addrinfo **res);
+int convert_individual_record(dns_rr *record,
+    const char *service, struct addrinfo hints, struct addrinfo **res);
+
+void ipv4_map_to_ipv6(struct sockaddr_in *in, struct sockaddr_in6 *out);
 
 int assign_socktype(int socktype, int protocol);
 int assign_protocol(int socktype, int protocol);
@@ -25,17 +27,30 @@ int convert_records(dns_rr *records, const char *service,
     dns_rr *curr_record = records;
     struct addrinfo *last = NULL, *curr_info;
 
-    int family = hints->ai_family;
-    int socktype = assign_socktype(hints->ai_socktype, hints->ai_protocol);
-    int protocol = assign_protocol(hints->ai_socktype, hints->ai_protocol);
+    struct addrinfo curr_hints = {
+        .ai_family = hints->ai_family,
+        .ai_flags = hints->ai_flags,
+        .ai_socktype = assign_socktype(hints->ai_socktype, hints->ai_protocol),
+        .ai_protocol = assign_protocol(hints->ai_socktype, hints->ai_protocol),
+    };
+
     int response;
 
     *res = NULL;
 
+
+    if (hints->ai_family != AF_INET6)
+        curr_hints.ai_flags &= ~AI_V4MAPPED;
+
+    /* IPv6 addresses are parsed first; if first record not IPv6, none are */
+    if (curr_record->flags == 0 && curr_record->addr->sa_family == AF_INET6
+                && !(curr_hints.ai_flags & AI_ALL))
+        curr_hints.ai_flags &= ~AI_V4MAPPED;
+
     while (curr_record != NULL) {
         curr_info = NULL;
         response = convert_individual_record(curr_record,
-                    service, family, socktype, protocol, &curr_info);
+                    service, curr_hints, &curr_info);
         if (response == 0) {
             if (!(hints->ai_flags & AI_CANONNAME)) {
                 free(curr_info->ai_canonname);
@@ -52,10 +67,10 @@ int convert_records(dns_rr *records, const char *service,
 
         if (hints->ai_socktype == 0 && hints->ai_protocol == 0) {
             /* in this case we iterate through all possible combinations */
-            socktype = next_socktype(socktype);
-            protocol = assign_protocol(socktype, protocol);
+            curr_hints.ai_socktype = next_socktype(curr_hints.ai_socktype);
+            curr_hints.ai_protocol = assign_protocol(curr_hints.ai_socktype, curr_hints.ai_protocol);
 
-            if (socktype == SOCK_STREAM)
+            if (curr_hints.ai_socktype == SOCK_STREAM)
                 curr_record = curr_record->next;
 
         } else {
@@ -70,8 +85,8 @@ int convert_records(dns_rr *records, const char *service,
 }
 
 
-int convert_individual_record(dns_rr *record, const char *service,
-            int family, int socktype, int protocol, struct addrinfo **res)
+int convert_individual_record(dns_rr *record,
+            const char *service, struct addrinfo hints, struct addrinfo **res)
 {
     struct addrinfo *curr = NULL;
     int response;
@@ -80,21 +95,26 @@ int convert_individual_record(dns_rr *record, const char *service,
     if (curr == NULL)
         return EAI_MEMORY;
 
-    if (family != AF_UNSPEC && family != record->addr->sa_family) {
+    curr->ai_socktype = hints.ai_socktype;
+    curr->ai_protocol = hints.ai_protocol;
+
+    if (hints.ai_flags & AI_V4MAPPED) {
+        curr->ai_family = AF_INET6;
+
+    } else if (hints.ai_family == AF_UNSPEC
+                || hints.ai_family == record->addr->sa_family) {
+        curr->ai_family = record->addr->sa_family;
+
+    } else {
         response = EAI_ADDRFAMILY; /* TODO: resolve EAI_FAMILY in check_input */
         goto err;
     }
-    else {
-        curr->ai_family = record->addr->sa_family;
-    }
 
-    curr->ai_socktype = socktype;
-    curr->ai_protocol = protocol;
 
-    if (curr->ai_family == AF_INET)
-        curr->ai_addrlen = sizeof(struct sockaddr_in);
-    else
+    if (record->addr->sa_family == AF_INET6 || (hints.ai_flags & AI_V4MAPPED))
         curr->ai_addrlen = sizeof(struct sockaddr_in6);
+    else
+        curr->ai_addrlen = sizeof(struct sockaddr_in);
 
     curr->ai_addr = malloc(curr->ai_addrlen);
     if (curr->ai_addr == NULL) {
@@ -102,7 +122,12 @@ int convert_individual_record(dns_rr *record, const char *service,
         goto err;
     }
 
-    memcpy(curr->ai_addr, record->addr, curr->ai_addrlen);
+    if (record->addr->sa_family == AF_INET && (hints.ai_flags & AI_V4MAPPED))
+        ipv4_map_to_ipv6((struct sockaddr_in*) record->addr,
+                         (struct sockaddr_in6*) curr->ai_addr);
+    else
+        memcpy(curr->ai_addr, record->addr, curr->ai_addrlen);
+
 
     response = assign_port(service, curr);
     if (response != 0)
@@ -120,6 +145,21 @@ err:
 
     freeaddrinfo(curr);
     return response;
+}
+
+
+
+void ipv4_map_to_ipv6(struct sockaddr_in *ipv4, struct sockaddr_in6 *ipv6)
+{
+    unsigned char *addr_ptr = (unsigned char*) &(ipv6->sin6_addr);
+
+    memset(ipv6, 0, sizeof(struct sockaddr_in6));
+
+    ipv6->sin6_family = AF_INET6;
+    ipv6->sin6_port = ipv4->sin_port;
+
+    memset(&(addr_ptr)[10], 0xff, 2);
+    memcpy(&(addr_ptr)[12], &ipv4->sin_addr, sizeof(ipv4->sin_addr));
 }
 
 

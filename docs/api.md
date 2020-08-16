@@ -57,27 +57,31 @@ below.
 All other fields must contain either 0 or a null pointer, as appropriate.
 
 **ai_flags** can contain any of the following flags:
-- `AI_TLS`          Sets the given connection to perform DNS resolution over 
+- `AI_TLS` - Sets the given connection to perform DNS resolution over 
 TLS on port 853. 
-- `AI_NONBLOCKING`  Sets the given connection to return immediately rather than 
+- `AI_NONBLOCKING` - Sets the given connection to return immediately rather than 
 blocking for network data. If this is option is set, either `EAI_WANT_READ` or 
 `EAI_WANT_WRITE` will be returned in the event of blocking conditions. In cases 
 where the DNS lookup has been previously performed and cached, the 
 `getaddrinfo` function may successfully return immediately; programs utilizing 
 the nonblocking functionality should account for this possibility. This flag 
 only works when used along with `AI_TLS`.
-- `AI_CANONNAME`    Sets the given connection to return the canon name of each 
+- `AI_CANONNAME` - Sets the given connection to return the canon name of each 
 address in the **ai_canonname** field. If this flag is not set, 
 **ai_canonname** will be null.
-- `AI_NUMERICSERV`  If this flag is specified, then **service** must point to a 
+- `AI_NUMERICSERV` - If this flag is specified, then **service** must point to a 
 string containing a numeric port number. This inhibits the invocation of name 
 resolution, which would convert strings such as "https" automatically to "443".
 This is enabled by default when the `AI_TLS` flag is set (i.e. `AI_TLS` is 
 functionally the same as `AI_TLS | AI_NUMERICSERV`, so name resolution is 
 not supported for DNS over TLS resolution).
-
-Note that the `AI_V4MAPPED` and `AI_ADDRCONFIG` flags are not currently 
-implemented for DNS over TLS lookups; they may be soon though.
+- `AI_V4MAPPED` - If this flag is specified, `getaddrinfo` lookups for IPv6 
+addresses only (i.e. **hints->ai_family** == `AF_INET6`) will return 
+IPv4-mapped IPv6 addresses if no IPv6 addresses could be found for the host.
+- `AI_ALL` - If this flag is used along with `AI_V4MAPPED`, lookups for 
+IPv6 addresses only will always return IPv4-mapped IPv6 addresses even if IPv6 
+addresses could be found for the host. This flag does nothing if `AI_V4MAPPED` 
+is not used with it.
 
 The **res** parameter should point to a `struct addrinfo` pointer; it will be 
 initialized with a linked list of addrinfo structs. **ai_next** points to the 
@@ -101,67 +105,44 @@ configurations and addresses suitable for creating sockets with/connecting to.
 `getaddrinfo` returns 0 on success, or one of the following error codes on 
 failure:
 
-- > **EAI_BADFLAGS**
-  >
-  > The flags specified in **hints->ai_flags** were unknown or not valid when 
-  > OR-ed together.
+- **EAI_BADFLAGS** - The flags specified in **hints->ai_flags** were unknown 
+or not valid when OR-ed together.
 
-- > **EAI_NONAME**
-  >
-  > **service** did not contain a known service or a valid port number.
+- **EAI_NONAME** - **service** did not contain a known service or a valid port 
+number.
 
-- > **EAI_AGAIN**
-  >
-  > Domain name resolution failed in a non-fatal way; the function can be 
-  > attempted again at a later time. This usually indicates that the nameserver 
-  > is busy.
+- **EAI_AGAIN** - Domain name resolution failed in a non-fatal way; the 
+function can be attempted again at a later time. This usually indicates that 
+the nameserver is busy.
 
-- > **EAI_FAIL**
-  >
-  > A non-recoverable failure occurred during name resolution.
+- **EAI_FAIL** - A non-recoverable failure occurred during name resolution.
 
-- > **EAI_NODATA**
-  >
-  > No address was associated with the provided hostname in the format 
-  > specified. This can include hosts that run on IPv4 machines when 
-  > `getaddrinfo` is performed with flags that specify IPv6 only.
+- **EAI_NODATA** - No address was associated with the provided hostname in the 
+format  specified. This can include hosts that run on IPv4 machines when 
+`getaddrinfo` is performed with flags that specify IPv6 only.
 
-- > **EAI_FAMILY**
-  >
-  > **hints->ai_family** is not a supported family.
+- **EAI_FAMILY** - **hints->ai_family** is not a supported family.
 
-- > **EAI_SOCKTYPE**
-  >
-  > **hints->ai_socktype** is not a supported socket type.
+- **EAI_SOCKTYPE** - **hints->ai_socktype** is not a supported socket type.
 
-- > **EAI_SERVICE**
-  >
-  > "Servname not supported for ai_socktype"
+- **EAI_SERVICE** - "Servname not supported for ai_socktype"
 
-- > **EAI_ADDRFAMILY**
-  >
-  > "Address family for hostname not supported"
+- **EAI_ADDRFAMILY** - "Address family for hostname not supported"
 
-- > **EAI_MEMORY**
-  >
-  > A memory allocation failure occurred while performing the request.
+- **EAI_MEMORY** - A memory allocation failure occurred while performing the 
+request.
 
-- > **EAI_SYSTEM**
-  >
-  > A system error has occurred. Check **errno** for more details.
+- **EAI_SYSTEM** - A system error has occurred. Check **errno** for more 
+details.
 
-- > **EAI_WANT_READ**
-  >
-  > Reading data from the nameserver would result in blocking on network 
-  > resources.
+- **EAI_WANT_READ** - Reading data from the nameserver would result in blocking 
+on network resources.
 
-- > **EAI_WANT_WRITE**
-  >
-  > Writing data to the nameserver would result in blocking on network services.
+- **EAI_WANT_WRITE** - Writing data to the nameserver would result in blocking 
+on network services.
 
-- > **EAI_TLS**
-  >
-  > An error occurred while performing TLS authentication with the nameserver.
+- **EAI_TLS** - An error occurred while performing TLS authentication with the 
+nameserver.
 
 #
 
