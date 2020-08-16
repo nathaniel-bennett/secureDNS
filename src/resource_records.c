@@ -181,15 +181,13 @@ int parse_dns_record(dns_wire *wire,
 {
     dns_rr *tmp = NULL, *records = NULL;
     int i, ret, record_cnt;
-    char *cname = strdup(hostname);
-    if (cname == NULL)
-        return EAI_MEMORY;
+    char cname[MAX_HOSTNAME+1] = {0};
 
-    ret = verify_record_info(wire, hostname, id);
-    if (ret < 0)
+    strncpy(cname, hostname, MAX_HOSTNAME);
+
+    record_cnt = verify_record_info(wire, hostname, id);
+    if (record_cnt < 0)
         goto err;
-
-    record_cnt = ret;
 
     for (i = 0; i < record_cnt; i++) {
         ret = parse_rr(wire, &tmp);
@@ -198,10 +196,8 @@ int parse_dns_record(dns_wire *wire,
 
         if (tmp->flags & OTHER_RECORD_FLAG) {
             if (tmp->flags & CNAME_RECORD_FLAG) {
-                /* replace current cname with the new cname found in the record */
-                free(cname);
-                cname = tmp->aliased_host; /* we already converted from wire */
-                tmp->aliased_host = NULL;
+                memset(cname, 0, MAX_HOSTNAME+1);
+                strncpy(cname, tmp->aliased_host, MAX_HOSTNAME+1);
             }
 
             dns_records_free(tmp);
@@ -216,7 +212,6 @@ int parse_dns_record(dns_wire *wire,
         records = concat_records(records, tmp);
     }
 
-    free(cname);
     *out = records;
 
     return 0;
@@ -226,7 +221,6 @@ err:
     if (tmp != NULL && tmp != records)
         dns_records_free(tmp);
 
-    free(cname);
     return ret;
 }
 
@@ -554,7 +548,7 @@ int parse_rr(dns_wire *wire, dns_rr **out)
     }
 
     if (type == DNS_CNAME_TYPE) {
-        record->flags |= OTHER_RECORD_FLAG | CNAME_RECORD_FLAG;
+        record->flags = OTHER_RECORD_FLAG | CNAME_RECORD_FLAG;
         ret = name_ascii_from_wire(wire, &record->aliased_host);
 
     } else if (type == DNS_A_TYPE) {
@@ -564,7 +558,7 @@ int parse_rr(dns_wire *wire, dns_rr **out)
         ret = get_ipv6_rdata(wire, record->resp_len, &record->addr);
 
     } else {
-        record->flags |= OTHER_RECORD_FLAG;
+        record->flags = OTHER_RECORD_FLAG;
         ret = get_rr_rdata(wire, record->resp_len, &record->data);
     }
 
