@@ -102,7 +102,6 @@ void str_hashmap_deep_free(hsmap *map, void (*free_func)(void*))
 
     free(map->buckets);
     free(map);
-    return;
 }
 
 
