@@ -17,7 +17,7 @@ int assign_socktype(int socktype, int protocol);
 int assign_protocol(int socktype, int protocol);
 int next_socktype(int curr_socktype);
 
-in_port_t str_to_port(const char *port, in_port_t *out);
+in_port_t str_to_port(const char *port);
 int assign_port(const char *service, struct addrinfo *info);
 
 
@@ -183,7 +183,7 @@ int assign_socktype(int socktype, int protocol)
     if (socktype == 0 && protocol == 0)
         return SOCK_STREAM;
 
-    else if (protocol == IPPROTO_TCP)
+    if (protocol == IPPROTO_TCP)
         return SOCK_STREAM;
 
     else if (protocol == IPPROTO_UDP)
@@ -198,7 +198,7 @@ int assign_protocol(int socktype, int protocol)
     if (socktype == 0 && protocol == 0)
         return IPPROTO_TCP;
 
-    else if (socktype == SOCK_STREAM)
+    if (socktype == SOCK_STREAM)
         return IPPROTO_TCP;
 
     else if (socktype == SOCK_DGRAM)
@@ -213,34 +213,30 @@ int assign_protocol(int socktype, int protocol)
 
 /* TODO: add support for strings such as 'HTTP', 'DNS', etc? */
 /**
- *
- * @param port
+ * @param port A string representation of a port number
  * @param out The port number (in network byte order) to be used
- * @return
+ * @return An integer port number (or -1 on failure)
  */
-in_port_t str_to_port(const char *port, in_port_t *out)
+in_port_t str_to_port(const char *port)
 {
     long res;
 
     if (port == NULL)
-        res = 0;
-    else
-        res = strtol(port, NULL, 10);
+        return -1;
+
+    res = strtol(port, NULL, 10);
 
     if (res < 0 || res > UINT16_MAX || (res == 0 && strcmp(port, "0") != 0))
         return -1;
 
-    *out = (in_port_t) htons((uint16_t) res);
-    return 0;
+    return (in_port_t) htons((uint16_t) res);
 }
-
 
 
 int assign_port(const char *service, struct addrinfo *info)
 {
-    in_port_t port;
-
-    if (str_to_port(service, &port) != 0)
+    in_port_t port = str_to_port(service);
+    if (port < 0)
         return EAI_SERVICE;
 
     if (info->ai_family == AF_INET) {
