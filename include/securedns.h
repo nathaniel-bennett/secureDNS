@@ -1,5 +1,5 @@
-#ifndef DNSWRAPPER__DNS_H
-#define DNSWRAPPER__DNS_H
+#ifndef SECUREDNS_H
+#define SECUREDNS_H
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -46,10 +46,13 @@
 #undef EAI_SYSTEM
 #define EAI_SYSTEM     -11 /* System error returned in `errno'.  */
 
+/** Error code to indicate TLS connection failed */
 #define EAI_TLS        -12
 
+/** For use with nonblocking lookup--indicates socket should be polled for reading */
 #define EAI_WANT_READ  -13
 
+/** For use with nonblocking lookup--indicates socket should be polled for writing */
 #define EAI_WANT_WRITE -14
 
 /** Flag to have `getaddrinfo()` lookups with DNS over TLS */
