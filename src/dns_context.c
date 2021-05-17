@@ -68,8 +68,10 @@ int dns_context_new(const char *hostname,
     }
 
     dns_ctx = calloc(1, sizeof(dns_context));
-    if (dns_ctx == NULL)
-        return EAI_MEMORY;
+    if (dns_ctx == NULL) {
+        error = EAI_MEMORY;
+        goto err;
+    }
 
     if (is_nonblocking)
         type |= SOCK_NONBLOCK;
@@ -286,8 +288,10 @@ int form_dns_requests(dns_context *dns_ctx, const char *hostname)
     char *canon_hostname = NULL;
 
     ret = RAND_bytes((unsigned char*) &id, sizeof(id));
-    if (ret != 1)
-        id = rand();
+    if (ret != 1) {
+        ret = EAI_AGAIN;
+        goto err;
+    }
 
     dns_ctx->id = id;
 
@@ -320,6 +324,7 @@ int form_dns_requests(dns_context *dns_ctx, const char *hostname)
     dns_ctx->req_size += ret + 2;
 
     return 0;
+
 err:
     if (canon_hostname != NULL)
         free(canon_hostname);
@@ -371,7 +376,8 @@ void parse_next_resp_size(dns_context *dns_ctx)
 
 int canonicalize_name(const char *name, char **canon_name)
 {
-    int label_len = 0, name_len, i;
+    size_t name_len;
+    int label_len = 0, i;
     char *str;
 
     str = strdup(name);
