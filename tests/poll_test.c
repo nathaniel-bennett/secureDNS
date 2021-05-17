@@ -93,6 +93,7 @@ int main(int argc, char **argv) {
         print_addrinfo(addresses[i]);
 
     /* now all of `addresses` is filled */
+    return 0;
 }
 
 /*
