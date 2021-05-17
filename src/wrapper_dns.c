@@ -179,7 +179,7 @@ int gai_set_nameserver(in_addr_t addr, const char *hostname)
         return -1;
     }
 
-    int hostname_len = strlen(hostname);
+    unsigned long hostname_len = strlen(hostname);
     if (hostname_len > MAX_HOSTNAME) {
         errno = EINVAL;
         return -1;
@@ -188,7 +188,7 @@ int gai_set_nameserver(in_addr_t addr, const char *hostname)
     dns_addr = addr;
 
     memset(dns_hostname, 0, MAX_HOSTNAME+1);
-    memcpy(dns_hostname, hostname, hostname_len);
+    memcpy(dns_hostname, hostname, hostname_len+1);
 
     clear_saved_dns_contexts();
     clear_session_cache();
