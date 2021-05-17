@@ -59,7 +59,7 @@ typedef struct dns_wire_st dns_wire;
 
 struct dns_wire_st {
     unsigned char * const data; /* data ptr shouldn't be changed once set */
-    const int length; /* neither should length */
+    const size_t length; /* neither should length */
     int pos;
 };
 
@@ -77,7 +77,7 @@ void clear_header(unsigned char *header);
 void set_header_id(unsigned char *header, uint16_t id);
 void set_header_recursion_desired(unsigned char *header);
 void set_header_question_cnt(unsigned char *header, uint16_t cnt);
-uint16_t get_header_id(unsigned char *header);
+uint16_t get_header_id(const unsigned char *header);
 int check_dns_resp_header(unsigned char *header, uint16_t id);
 
 void set_rr_type(dns_wire *wire, uint16_t type);
@@ -140,7 +140,7 @@ int form_question_record(unsigned char *buf,
 
 
 int parse_dns_records(unsigned char *buf,
-            int buf_len, const char *hostname, uint16_t id, dns_rr **out)
+            size_t buf_len, const char *hostname, uint16_t id, dns_rr **out)
 {
     dns_wire wire = {
         .data = buf,
@@ -185,9 +185,11 @@ int parse_dns_record(dns_wire *wire,
 
     strncpy(cname, hostname, MAX_HOSTNAME);
 
-    record_cnt = verify_record_info(wire, hostname, id);
-    if (record_cnt < 0)
+    ret = verify_record_info(wire, hostname, id);
+    if (ret < 0)
         goto err;
+
+    record_cnt = ret;
 
     for (i = 0; i < record_cnt; i++) {
         ret = parse_rr(wire, &tmp);
@@ -522,8 +524,10 @@ int parse_rr(dns_wire *wire, dns_rr **out)
     int ret;
 
     dns_rr *record = calloc(1, sizeof(dns_rr));
-    if (record == NULL)
-        return EAI_MEMORY;
+    if (record == NULL) {
+        ret = EAI_MEMORY;
+        goto err;
+    }
 
     /* extract name from wire */
     ret = name_ascii_from_wire(wire, &record->cname);
@@ -567,6 +571,7 @@ int parse_rr(dns_wire *wire, dns_rr **out)
 
     *out = record;
     return 0;
+
 err:
     if (record != NULL)
         dns_records_free(record);
@@ -759,7 +764,7 @@ int get_ipv6_rdata(dns_wire *wire, uint16_t rdata_len, struct sockaddr **addr)
 }
 
 
-uint16_t get_header_id(unsigned char *header)
+uint16_t get_header_id(const unsigned char *header)
 {
     uint16_t id = ((uint16_t) header[0]) << 8;
     id += (uint16_t) header[1];
