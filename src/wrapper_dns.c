@@ -12,8 +12,8 @@
 #include "saved_contexts.h"
 #include "resource_records.h"
 
-#define CLOUDFARE_IP ((uint32_t) 0x01010101)
-#define CLOUDFARE_HOSTNAME "cloudflare-dns.com"
+#define CLOUDFLARE_IP ((uint32_t) 0x01010101)
+#define CLOUDFLARE_HOSTNAME "cloudflare-dns.com"
 #define DNS_OVER_TLS_PORT 853
 #define MAX_HOSTNAME 253
 
@@ -34,7 +34,7 @@ int WRAPPER_getaddrinfo(const char *node, const char *service,
 {
     const struct sockaddr_in addr = {
         .sin_family = AF_INET,
-        .sin_addr.s_addr = (dns_addr == 0) ? htonl(CLOUDFARE_IP) : dns_addr,
+        .sin_addr.s_addr = (dns_addr == 0) ? htonl(CLOUDFLARE_IP) : dns_addr,
         .sin_port = htons(DNS_OVER_TLS_PORT),
     };
     dns_context *dns_ctx = NULL;
@@ -198,13 +198,13 @@ int gai_set_nameserver(in_addr_t addr, const char *hostname)
 
 in_addr_t gai_nameserver_addr()
 {
-    return (dns_addr == 0) ? htonl(CLOUDFARE_IP) : dns_addr;
+    return (dns_addr == 0) ? htonl(CLOUDFLARE_IP) : dns_addr;
 }
 
 
 const char *gai_nameserver_host()
 {
-    return (strlen(dns_hostname) == 0) ? CLOUDFARE_HOSTNAME : dns_hostname;
+    return (strlen(dns_hostname) == 0) ? CLOUDFLARE_HOSTNAME : dns_hostname;
 }
 
 
