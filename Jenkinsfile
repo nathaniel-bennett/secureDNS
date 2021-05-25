@@ -3,8 +3,7 @@ pipeline {
   stages {
     stage('Build') {
       steps {
-        sh '''cmake
-make'''
+        sh 'make clean && make'
       }
     }
 
