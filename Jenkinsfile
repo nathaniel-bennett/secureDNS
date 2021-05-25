@@ -3,8 +3,7 @@ pipeline {
   stages {
     stage('Build') {
       steps {
-        sh '''#!/bin/bash -l
-make clean && make'''
+        sh 'echo $PATH'
       }
     }
 
